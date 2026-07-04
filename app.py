@@ -144,18 +144,6 @@ def main():
         card4_foot=card4_foot
     )
     
-    # ==================== BOTÃO DE EXPORTAÇÃO ====================
-    st.markdown("---")
-    st.markdown("### 📊 Exportar Dados")
-    
-    render_export_button(
-        estado=selecoes["estado"],
-        regiao=selecoes["regiao"],
-        nivel=nivel
-    )
-    st.markdown("---")
-    # ============================================================
-    
     # Renderizar gráfico de ranking
     st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
     render_ranking_chart(ranking, chart_title, highlight_nome)
@@ -202,6 +190,17 @@ def main():
         titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
     
     render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
+    
+    # ==================== BOTÃO DE EXPORTAÇÃO ====================
+    st.markdown("---")
+    
+    render_export_button(
+        estado=selecoes["estado"],
+        regiao=selecoes["regiao"],
+        nivel=nivel
+    )
+    st.markdown("---")
+    # ============================================================
     
     # Rodapé
     st.caption(UI_TEXTS["source"])
