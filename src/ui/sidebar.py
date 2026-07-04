@@ -22,6 +22,8 @@ class SidebarFilters:
         self.regiao_selecionada: Optional[Regiao] = None
         self.estado_selecionado: Optional[Estado] = None
         self.municipio_selecionado: Optional[Municipio] = None
+        
+        self._connection_error = False
     
     def render(self) -> Dict[str, Any]:
         """
@@ -33,9 +35,23 @@ class SidebarFilters:
         # Carregar regiões
         try:
             self.regioes = localidades_service.get_regioes()
-        except Exception:
-            st.error("Não foi possível conectar à API do IBGE. Verifique sua conexão.")
-            st.stop()
+            if not self.regioes:
+                self._connection_error = True
+                st.sidebar.error(
+                    "⚠️ Não foi possível carregar os dados do IBGE.\n"
+                    "Usando dados de fallback (limitados).\n"
+                    "Verifique sua conexão com a internet."
+                )
+                # Usar fallback com dados estáticos
+                self.regioes = self._get_fallback_regioes()
+        except Exception as e:
+            self._connection_error = True
+            st.sidebar.error(
+                f"⚠️ Erro ao conectar com a API do IBGE.\n"
+                f"Usando dados de fallback.\n"
+                f"Detalhes: {str(e)}"
+            )
+            self.regioes = self._get_fallback_regioes()
         
         # Seletor de região
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
@@ -47,9 +63,13 @@ class SidebarFilters:
             )
         
         # Seletor de estado
-        self.estados = localidades_service.get_estados(
-            self.regiao_selecionada.id if self.regiao_selecionada else None
-        )
+        try:
+            self.estados = localidades_service.get_estados(
+                self.regiao_selecionada.id if self.regiao_selecionada else None
+            )
+        except Exception as e:
+            st.sidebar.warning(f"⚠️ Erro ao carregar estados: {str(e)}")
+            self.estados = []
         
         estado_labels = [
             f'{e.nome} ({e.sigla})' for e in self.estados
@@ -65,9 +85,14 @@ class SidebarFilters:
         
         # Seletor de município
         if self.estado_selecionado:
-            self.municipios = localidades_service.get_municipios(
-                self.estado_selecionado.id
-            )
+            try:
+                self.municipios = localidades_service.get_municipios(
+                    self.estado_selecionado.id
+                )
+            except Exception as e:
+                st.sidebar.warning(f"⚠️ Erro ao carregar municípios: {str(e)}")
+                self.municipios = []
+            
             municipio_nomes = [m.nome for m in self.municipios]
             municipio_nome_sel = st.sidebar.selectbox(
                 "Cidade / Município",
@@ -85,6 +110,10 @@ class SidebarFilters:
                 disabled=True
             )
         
+        # Status de conexão
+        if self._connection_error:
+            st.sidebar.warning("📡 Modo offline - dados limitados")
+        
         # Rodapé da sidebar
         st.sidebar.markdown("---")
         st.sidebar.caption(
@@ -99,8 +128,20 @@ class SidebarFilters:
             "nivel": self._determinar_nivel(),
             "codigo": self._determinar_codigo(),
             "breadcrumb": self._get_breadcrumb(),
-            "nome_local": self._get_nome_local()
+            "nome_local": self._get_nome_local(),
+            "modo_offline": self._connection_error
         }
+    
+    def _get_fallback_regioes(self) -> List[Regiao]:
+        """Retorna dados de fallback para regiões"""
+        fallback_data = [
+            {"id": 1, "nome": "Norte", "sigla": "N"},
+            {"id": 2, "nome": "Nordeste", "sigla": "NE"},
+            {"id": 3, "nome": "Sudeste", "sigla": "SE"},
+            {"id": 4, "nome": "Sul", "sigla": "S"},
+            {"id": 5, "nome": "Centro-Oeste", "sigla": "CO"},
+        ]
+        return [Regiao.from_api(item) for item in fallback_data]
     
     def _determinar_nivel(self) -> str:
         """Determina o nível territorial baseado nas seleções"""
