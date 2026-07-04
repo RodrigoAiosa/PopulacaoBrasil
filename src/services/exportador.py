@@ -4,7 +4,7 @@ Serviço para exportação de dados em Excel/CSV
 import pandas as pd
 from typing import List, Dict, Any
 import streamlit as st
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from src.services.localidades import localidades_service
 from src.services.agregados import agregados_service
@@ -190,26 +190,40 @@ class ExportadorService:
     @staticmethod
     def exportar_para_excel(df: pd.DataFrame) -> BytesIO:
         """
-        Exporta DataFrame para Excel
+        Exporta DataFrame para Excel com fallback para CSV se openpyxl não estiver disponível
         """
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Dados')
+        try:
+            # Tentar exportar para Excel
+            from openpyxl.workbook import Workbook
+            output = BytesIO()
             
-            # Formatar colunas de percentual
-            workbook = writer.book
-            worksheet = writer.sheets['Dados']
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False, sheet_name='Dados')
+                
+                # Formatar colunas de percentual
+                workbook = writer.book
+                worksheet = writer.sheets['Dados']
+                
+                # Formatar colunas de percentual
+                for idx, col in enumerate(df.columns):
+                    if '%' in col:
+                        col_letter = chr(65 + idx)  # A, B, C, ...
+                        for row in range(2, len(df) + 2):
+                            cell = f"{col_letter}{row}"
+                            if worksheet[cell].value is not None:
+                                worksheet[cell].number_format = '0.00%'
             
-            # Formatar colunas de percentual
-            for idx, col in enumerate(df.columns):
-                if '%' in col:
-                    col_letter = chr(65 + idx)  # A, B, C, ...
-                    for row in range(2, len(df) + 2):
-                        cell = f"{col_letter}{row}"
-                        worksheet[cell].number_format = '0.00%'
-        
-        output.seek(0)
-        return output
+            output.seek(0)
+            return output
+            
+        except ImportError:
+            # Fallback: exportar como CSV e avisar o usuário
+            st.warning("⚠️ Biblioteca 'openpyxl' não encontrada. Exportando como CSV.")
+            return ExportadorService.exportar_para_csv(df)
+        except Exception as e:
+            # Em caso de erro, exportar como CSV
+            st.warning(f"⚠️ Erro ao exportar para Excel: {str(e)}. Exportando como CSV.")
+            return ExportadorService.exportar_para_csv(df)
 
 
 # Instância global
