@@ -18,15 +18,38 @@ CSS = """
     --line: #D8E0D9;
 }
 
-html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
-.stApp { background: var(--bg); }
-#MainMenu, footer { visibility: hidden; }
-.block-container { padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1180px; }
+/* Reset e estilos base */
+html, body, [class*="css"] { 
+    font-family: 'IBM Plex Sans', sans-serif; 
+    color: var(--ink); 
+}
 
+.stApp { 
+    background: var(--bg); 
+}
+
+#MainMenu, footer { 
+    visibility: hidden; 
+}
+
+.block-container { 
+    padding-top: 1.5rem; 
+    padding-bottom: 3rem; 
+    max-width: 1180px; 
+}
+
+/* ========================================
+   SIDEBAR ESTILOS
+   ======================================== */
 section[data-testid="stSidebar"] {
     background: var(--primary-dark);
 }
-section[data-testid="stSidebar"] * { color: #EAF2EE !important; }
+
+section[data-testid="stSidebar"] * { 
+    color: #EAF2EE !important; 
+}
+
+/* Labels dos selects na sidebar */
 section[data-testid="stSidebar"] .stSelectbox label { 
     font-weight: 600; 
     letter-spacing: .03em; 
@@ -34,12 +57,130 @@ section[data-testid="stSidebar"] .stSelectbox label {
     font-size: 0.75rem; 
     opacity: .85; 
 }
+
+/* Select boxes na sidebar */
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.25);
+    border-radius: 8px;
 }
 
-/* Hero */
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.4);
+}
+
+/* Headers na sidebar */
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #EAF2EE !important;
+}
+
+/* Caption na sidebar */
+section[data-testid="stSidebar"] .caption {
+    opacity: 0.7;
+    font-size: 0.8rem;
+}
+
+/* ========================================
+   BOTÃO DE EXPORTAÇÃO NA SIDEBAR
+   ======================================== */
+section[data-testid="stSidebar"] .stButton button {
+    background: var(--gold) !important;
+    color: var(--primary-dark) !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    width: 100% !important;
+    font-size: 0.9rem !important;
+}
+
+section[data-testid="stSidebar"] .stButton button:hover {
+    background: #D4A83E !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 150, 46, 0.4);
+}
+
+section[data-testid="stSidebar"] .stButton button:active {
+    transform: translateY(0px);
+}
+
+/* Download button na sidebar */
+section[data-testid="stSidebar"] .stDownloadButton button {
+    background: var(--gold) !important;
+    color: var(--primary-dark) !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    width: 100% !important;
+    font-size: 0.9rem !important;
+}
+
+section[data-testid="stSidebar"] .stDownloadButton button:hover {
+    background: #D4A83E !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 150, 46, 0.4);
+}
+
+section[data-testid="stSidebar"] .stDownloadButton button:active {
+    transform: translateY(0px);
+}
+
+/* Export section divider */
+.sidebar-export-divider {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin: 1rem 0;
+}
+
+/* ========================================
+   LINKEDIN FOOTER NA SIDEBAR
+   ======================================== */
+.sidebar-linkedin-footer {
+    text-align: center;
+    padding: 15px 0 10px 0;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-linkedin-footer a {
+    color: #EAF2EE !important;
+    text-decoration: none !important;
+    font-size: 13px;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.sidebar-linkedin-footer a:hover {
+    opacity: 1;
+    color: #FFFFFF !important;
+    transform: scale(1.05);
+}
+
+.sidebar-linkedin-footer .linkedin-icon {
+    display: block;
+    margin: 0 auto 6px auto;
+    transition: all 0.3s ease;
+}
+
+.sidebar-linkedin-footer .linkedin-icon:hover {
+    transform: scale(1.1);
+}
+
+.sidebar-linkedin-footer .linkedin-text {
+    font-size: 12px;
+    opacity: 0.6;
+    letter-spacing: 0.3px;
+}
+
+/* ========================================
+   HERO SECTION
+   ======================================== */
 .hero {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     border-radius: 18px;
@@ -50,12 +191,18 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     overflow: hidden;
     animation: fadeUp .6s ease-out;
 }
+
 .hero::after{
     content:"";
-    position:absolute; right:-60px; top:-60px;
-    width:260px; height:260px; border-radius:50%;
+    position:absolute; 
+    right:-60px; 
+    top:-60px;
+    width:260px; 
+    height:260px; 
+    border-radius:50%;
     background: radial-gradient(circle, rgba(201,150,46,0.35), transparent 70%);
 }
+
 .hero-eyebrow {
     font-size: 0.8rem;
     letter-spacing: .08em;
@@ -64,6 +211,7 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     font-weight: 600;
     margin-bottom: .6rem;
 }
+
 .hero-number {
     font-family: 'Fraunces', serif;
     font-weight: 700;
@@ -71,11 +219,13 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     line-height: 1;
     margin: 0;
 }
+
 .hero-label {
     font-size: 1rem;
     color: #D8E9E1;
     margin-top: .5rem;
 }
+
 .hero-sub {
     margin-top: 1rem;
     max-width: 640px;
@@ -84,7 +234,9 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     line-height: 1.5;
 }
 
-/* Cards */
+/* ========================================
+   CARDS
+   ======================================== */
 .card {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -95,7 +247,14 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: all 0.3s ease;
 }
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
 .card-label {
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -104,6 +263,7 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     font-weight: 600;
     line-height: 1.3;
 }
+
 .card-value {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 1.4rem;
@@ -113,6 +273,7 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     line-height: 1.25;
     white-space: normal;
 }
+
 .card-unit {
     font-size: 0.78rem;
     color: var(--muted);
@@ -120,6 +281,7 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     font-family: 'IBM Plex Sans', sans-serif;
     white-space: nowrap;
 }
+
 .card-foot {
     font-size: 0.78rem;
     color: var(--gold);
@@ -128,7 +290,9 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     line-height: 1.3;
 }
 
-/* Section titles */
+/* ========================================
+   SECTION TITLES
+   ======================================== */
 .section-title {
     font-family: 'Fraunces', serif;
     font-weight: 600;
@@ -139,13 +303,29 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     padding-left: .6rem;
 }
 
-/* Animations */
+/* ========================================
+   ANIMAÇÕES
+   ======================================== */
 @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
-/* Folium map container */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* ========================================
+   FOLIUM MAP CONTAINER
+   ======================================== */
 .folium-map-container {
     background: white;
     border-radius: 14px;
@@ -153,11 +333,118 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     overflow: hidden;
     padding: 0;
     margin-bottom: 1rem;
+    transition: all 0.3s ease;
 }
 
-/* Responsive adjustments */
+.folium-map-container:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+/* ========================================
+   WARNINGS E INFOS NA SIDEBAR
+   ======================================== */
+section[data-testid="stSidebar"] .stAlert {
+    background: rgba(201, 150, 46, 0.15) !important;
+    border-color: var(--gold) !important;
+    border-radius: 8px !important;
+    padding: 0.8rem !important;
+}
+
+section[data-testid="stSidebar"] .stAlert .stAlertIcon {
+    color: var(--gold) !important;
+}
+
+section[data-testid="stSidebar"] .stAlert .stMarkdown {
+    color: #EAF2EE !important;
+}
+
+/* ========================================
+   EXPANDER NA SIDEBAR
+   ======================================== */
+section[data-testid="stSidebar"] .streamlit-expanderHeader {
+    color: #EAF2EE !important;
+    opacity: 0.8;
+    font-size: 0.85rem;
+}
+
+section[data-testid="stSidebar"] .streamlit-expanderHeader:hover {
+    opacity: 1;
+}
+
+section[data-testid="stSidebar"] .streamlit-expanderContent {
+    color: #EAF2EE !important;
+}
+
+/* ========================================
+   RESPONSIVIDADE
+   ======================================== */
 @media (max-width: 900px) { 
-    .card-grid { grid-template-columns: repeat(2, 1fr); } 
+    .card-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+    }
+}
+
+@media (max-width: 600px) {
+    .hero {
+        padding: 1.8rem 1.5rem;
+    }
+    
+    .hero-number {
+        font-size: 2.2rem !important;
+    }
+    
+    .card {
+        min-height: 120px;
+        padding: 1rem;
+    }
+    
+    .card-value {
+        font-size: 1.1rem;
+    }
+    
+    section[data-testid="stSidebar"] {
+        padding: 0.5rem !important;
+    }
+}
+
+/* ========================================
+   SCROLLBAR PERSONALIZADA
+   ======================================== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* ========================================
+   SELECIONADORES DE TEXTO
+   ======================================== */
+::selection {
+    background: var(--gold);
+    color: var(--primary-dark);
+}
+
+/* ========================================
+   TOOLTIP PERSONALIZADO
+   ======================================== */
+[data-testid="stTooltip"] {
+    background: var(--primary-dark) !important;
+    color: #EAF2EE !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
 }
 </style>
 """
