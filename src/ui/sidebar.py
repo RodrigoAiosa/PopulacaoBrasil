@@ -47,13 +47,22 @@ class SidebarFilters:
             self._connection_error = True
             st.sidebar.warning(f"⚠️ Erro ao conectar com a API: {str(e)[:100]}...")
         
-        # Seletor de região
+        # Seletor de região - INICIANDO COM "TODAS AS REGIÕES"
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
+        
+        # Usar session_state para manter a seleção
+        if "regiao_selecionada_nome" not in st.session_state:
+            st.session_state.regiao_selecionada_nome = FILTER_OPTIONS["todas_regioes"]
+        
         regiao_nome_sel = st.sidebar.selectbox(
             "Região", 
             regiao_nomes,
+            index=regiao_nomes.index(st.session_state.regiao_selecionada_nome),
             key="regiao_select"
         )
+        
+        # Atualizar session_state
+        st.session_state.regiao_selecionada_nome = regiao_nome_sel
         
         # Verificar se a região mudou
         nova_regiao = None
@@ -67,7 +76,11 @@ class SidebarFilters:
             self.regiao_selecionada = nova_regiao
             self.estado_selecionado = None
             self.municipio_selecionado = None
-            # Forçar recarregamento da página para transição instantânea
+            # Limpar session_state de estado e município
+            if "estado_selecionado_nome" in st.session_state:
+                del st.session_state.estado_selecionado_nome
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
             st.rerun()
         
         # Seletor de estado (atualizado com base na região)
@@ -84,11 +97,24 @@ class SidebarFilters:
         ]
         
         # Manter o estado selecionado se ainda estiver na lista
+        estado_options = [FILTER_OPTIONS["todos_estados"]] + estado_labels
+        
+        # Usar session_state para manter o estado selecionado
+        if "estado_selecionado_nome" not in st.session_state:
+            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
+        
+        # Verificar se o estado atual ainda existe na lista
+        if st.session_state.estado_selecionado_nome not in estado_options:
+            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
+        
         estado_label_sel = st.sidebar.selectbox(
             "Estado",
-            [FILTER_OPTIONS["todos_estados"]] + estado_labels,
+            estado_options,
+            index=estado_options.index(st.session_state.estado_selecionado_nome),
             key="estado_select"
         )
+        
+        st.session_state.estado_selecionado_nome = estado_label_sel
         
         novo_estado = None
         if estado_label_sel != FILTER_OPTIONS["todos_estados"]:
@@ -99,6 +125,8 @@ class SidebarFilters:
         if self.estado_selecionado != novo_estado:
             self.estado_selecionado = novo_estado
             self.municipio_selecionado = None
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
             if novo_estado is not None:
                 st.rerun()
         
@@ -113,11 +141,24 @@ class SidebarFilters:
                 self.municipios = []
             
             municipio_nomes = [m.nome for m in self.municipios]
+            municipio_options = [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes
+            
+            # Usar session_state para manter o município selecionado
+            if "municipio_selecionado_nome" not in st.session_state:
+                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
+            
+            # Verificar se o município atual ainda existe na lista
+            if st.session_state.municipio_selecionado_nome not in municipio_options:
+                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
+            
             municipio_nome_sel = st.sidebar.selectbox(
                 "Cidade / Município",
-                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes,
+                municipio_options,
+                index=municipio_options.index(st.session_state.municipio_selecionado_nome),
                 key="municipio_select"
             )
+            
+            st.session_state.municipio_selecionado_nome = municipio_nome_sel
             
             if municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
                 self.municipio_selecionado = next(
@@ -133,6 +174,8 @@ class SidebarFilters:
                 key="municipio_disabled"
             )
             self.municipio_selecionado = None
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
         
         # ==================== BOTÃO DE EXPORTAÇÃO ====================
         st.sidebar.markdown("---")
@@ -254,19 +297,6 @@ class SidebarFilters:
                     <div style="font-size: 10px; opacity: 0.6;">linkedin.com/in/rodrigoaiosa</div>
                 </a>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-        
-        # CSS inline para hover
-        st.sidebar.markdown(
-            """
-            <style>
-            .sidebar-linkedin-footer a:hover {
-                opacity: 1 !important;
-                transform: scale(1.05);
-            }
-            </style>
             """,
             unsafe_allow_html=True
         )
