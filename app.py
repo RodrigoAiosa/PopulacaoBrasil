@@ -27,6 +27,7 @@ from src.models.schemas import IndicadorDemografico
 from src.utils.formatters import fmt_int
 from src.utils.constants import UI_TEXTS
 from src.api.endpoints import NiveisTerritoriais
+from src.api.ibge_client import ibge_client
 
 
 def main():
@@ -35,14 +36,27 @@ def main():
     # Injetar CSS
     st.markdown(get_css(), unsafe_allow_html=True)
     
+    # Verificar conexão com a API
+    with st.spinner("🔄 Verificando conexão com a API do IBGE..."):
+        connection_ok = ibge_client.test_connection()
+    
+    if not connection_ok:
+        st.warning(
+            "⚠️ **Modo Offline**\n\n"
+            "Não foi possível conectar à API do IBGE. "
+            "O aplicativo usará dados de fallback (limitados). "
+            "Verifique sua conexão com a internet e recarregue a página."
+        )
+    
     # Renderizar sidebar e obter seleções
     selecoes = sidebar_filters.render()
     
     nivel = selecoes["nivel"]
     codigo = selecoes["codigo"]
+    modo_offline = selecoes.get("modo_offline", False)
     
     # Buscar indicadores
-    with st.spinner("Consultando a API do IBGE..."):
+    with st.spinner("📊 Carregando dados demográficos..."):
         indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
     
     # Determinar contexto para o quarto card e ranking
@@ -103,68 +117,4 @@ def main():
         total_municipios = sum(
             len(localidades_service.get_municipios(e.id)) for e in estados
         )
-        card4_label = "Municípios"
-        card4_value = fmt_int(total_municipios)
-        card4_unit = ""
-        card4_foot = f"em {len(estados)} estados"
-        chart_title = f"Estados da região {selecoes['regiao'].nome} por população"
-        highlight_nome = None
-    
-    else:
-        # Nível Brasil
-        todos_estados = localidades_service.get_estados()
-        peer_codigos = [e.id for e in todos_estados]
-        peer_nomes = [e.nome for e in todos_estados]
-        ranking = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.ESTADO,
-            peer_codigos,
-            peer_nomes
-        )
-        card4_label = "Estados"
-        card4_value = "27"
-        card4_unit = ""
-        card4_foot = "+ Distrito Federal"
-        chart_title = "Estados do Brasil por população"
-        highlight_nome = None
-    
-    # Renderizar hero
-    render_hero_section(
-        breadcrumb=selecoes["breadcrumb"],
-        populacao=indicadores.populacao,
-        nome_local=selecoes["nome_local"]
-    )
-    
-    # Renderizar cards
-    render_indicators_cards(
-        indicadores=indicadores,
-        card4_label=card4_label,
-        card4_value=card4_value,
-        card4_unit=card4_unit,
-        card4_foot=card4_foot
-    )
-    
-    # Renderizar gráfico de ranking
-    st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
-    render_ranking_chart(ranking, chart_title, highlight_nome)
-    
-    # Renderizar mapa
-    # Preparar dados para o mapa (sempre em nível nacional para o mapa)
-    todos_estados = localidades_service.get_estados()
-    ranking_mapa = agregados_service.get_ranking_populacao(
-        NiveisTerritoriais.ESTADO,
-        [e.id for e in todos_estados],
-        [e.nome for e in todos_estados]
-    )
-    
-    dados_mapa = mapas_service.preparar_dados_mapa(
-        ranking_mapa,
-        [{"nome": e.nome, "sigla": e.sigla} for e in todos_estados]
-    )
-    render_population_map(dados_mapa, ranking_mapa)
-    
-    # Rodapé
-    st.caption(UI_TEXTS["source"])
-
-
-if __name__ == "__main__":
-    main()
+        card
