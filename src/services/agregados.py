@@ -3,23 +3,45 @@ Serviços para consulta de agregados do SIDRA
 """
 from typing import List, Tuple, Optional, Dict, Any
 import streamlit as st
+import requests
 
-from src.api.ibge_client import ibge_client
 from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais
 from src.models.schemas import IndicadorDemografico, RankingItem
-from src.config.settings import CACHE_TTL_AGREGADOS
+from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
+
+
+@st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
+def _fetch_metadados(agregado_id: int) -> Optional[Dict[str, Any]]:
+    """Função cacheada para buscar metadados do agregado"""
+    try:
+        url = APIEndpoints.get_agregado_metadados_url(agregado_id)
+        resp = requests.get(url, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
+def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, periodo: str = "-1") -> Optional[Any]:
+    """Função cacheada para buscar valor do agregado"""
+    try:
+        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
+        resp = requests.get(url, params={"localidades": localidade}, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
 
 
 class AgregadosService:
     """Serviço para operações com agregados do SIDRA"""
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
     def get_metadados_agregado(agregado_id: int) -> Dict[str, Any]:
         """Obtém metadados de um agregado"""
         try:
-            url = APIEndpoints.get_agregado_metadados_url(agregado_id)
-            data = ibge_client.get_json_cached(url)
+            data = _fetch_metadados(agregado_id)
             if data:
                 return data
         except Exception as e:
@@ -70,7 +92,6 @@ class AgregadosService:
         return None
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
     def get_valor_agregado(
         agregado_id: int,
         variavel_id: int,
@@ -82,10 +103,9 @@ class AgregadosService:
         Consulta valor mais recente de uma variável para uma localidade
         """
         try:
-            url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
             localidade = f"{nivel}[{codigo}]"
+            data = _fetch_valor_agregado(agregado_id, variavel_id, localidade, periodo)
             
-            data = ibge_client.get_json_cached(url, params={"localidades": localidade})
             if not data:
                 return None
             
@@ -100,7 +120,16 @@ class AgregadosService:
             ultimo_periodo = sorted(serie.keys())[-1]
             valor_bruto = serie[ultimo_periodo]
             
-            return ibge_client.parse_sidra_value(valor_bruto)
+            # Parse do valor
+            if valor_bruto is None or str(valor_bruto) in {"-", "..", "...", "X", ""}:
+                return None
+            
+            try:
+                clean_value = str(valor_bruto).replace(",", ".")
+                return float(clean_value)
+            except (ValueError, TypeError):
+                return None
+                
         except Exception as e:
             st.warning(f"⚠️ Erro ao obter valor do agregado: {str(e)}")
             return None
@@ -153,7 +182,6 @@ class AgregadosService:
         )
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
     def get_ranking_populacao(
         nivel: str,
         codigos: List[int],
