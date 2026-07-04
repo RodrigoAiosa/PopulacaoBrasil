@@ -3,11 +3,47 @@ Serviços para consulta de localidades (Regiões, Estados, Municípios)
 """
 from typing import List, Optional
 import streamlit as st
+import requests
 
-from src.api.ibge_client import ibge_client
 from src.api.endpoints import APIEndpoints
 from src.models.schemas import Regiao, Estado, Municipio
-from src.config.settings import CACHE_TTL_LOCALIDADES
+from src.config.settings import CACHE_TTL_LOCALIDADES, API_TIMEOUT
+
+
+@st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
+def _fetch_regioes() -> Optional[List[dict]]:
+    """Função cacheada para buscar regiões"""
+    try:
+        url = APIEndpoints.get_regioes_url()
+        resp = requests.get(url, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
+def _fetch_estados(regiao_id: Optional[int] = None) -> Optional[List[dict]]:
+    """Função cacheada para buscar estados"""
+    try:
+        url = APIEndpoints.get_estados_url(regiao_id)
+        resp = requests.get(url, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
+def _fetch_municipios(uf_id: int) -> Optional[List[dict]]:
+    """Função cacheada para buscar municípios"""
+    try:
+        url = APIEndpoints.get_municipios_url(uf_id)
+        resp = requests.get(url, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
 
 
 class LocalidadesService:
@@ -53,11 +89,10 @@ class LocalidadesService:
     ]
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
     def get_regioes() -> List[Regiao]:
         """Lista todas as regiões do Brasil com fallback"""
         try:
-            data = ibge_client.get_json_cached(APIEndpoints.get_regioes_url())
+            data = _fetch_regioes()
             if data:
                 return sorted(
                     [Regiao.from_api(item) for item in data],
@@ -73,12 +108,10 @@ class LocalidadesService:
         )
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
     def get_estados(regiao_id: Optional[int] = None) -> List[Estado]:
         """Lista estados, opcionalmente filtrados por região, com fallback"""
         try:
-            url = APIEndpoints.get_estados_url(regiao_id)
-            data = ibge_client.get_json_cached(url)
+            data = _fetch_estados(regiao_id)
             if data:
                 estados = [Estado.from_api(item) for item in data]
                 return sorted(estados, key=lambda e: e.nome)
@@ -92,12 +125,10 @@ class LocalidadesService:
         return sorted(estados, key=lambda e: e.nome)
     
     @staticmethod
-    @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
     def get_municipios(uf_id: int) -> List[Municipio]:
         """Lista municípios de um estado com fallback"""
         try:
-            url = APIEndpoints.get_municipios_url(uf_id)
-            data = ibge_client.get_json_cached(url)
+            data = _fetch_municipios(uf_id)
             if data:
                 return sorted(
                     [Municipio.from_api(item) for item in data],
@@ -114,6 +145,10 @@ class LocalidadesService:
             {"id": 4, "nome": "Salvador"},
             {"id": 5, "nome": "Fortaleza"},
             {"id": 6, "nome": "Belo Horizonte"},
+            {"id": 7, "nome": "Curitiba"},
+            {"id": 8, "nome": "Porto Alegre"},
+            {"id": 9, "nome": "Recife"},
+            {"id": 10, "nome": "Manaus"},
         ]
         return sorted(
             [Municipio.from_api(item) for item in fallback_municipios],
