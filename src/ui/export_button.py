@@ -23,21 +23,25 @@ def render_export_button(
         df = exportador_service.gerar_dados_municipios(estado.id)
         nome_arquivo = f"dados_municipios_{estado.sigla.lower()}"
         label = f"📥 Baixar dados dos municípios de {estado.sigla}"
+        descricao = f"Municípios do estado {estado.nome}"
     elif nivel == "N3" and estado:
         # Nível estado - dados do estado
         df = exportador_service.gerar_dados_estados(regiao.id if regiao else None)
         nome_arquivo = f"dados_estado_{estado.sigla.lower()}"
         label = f"📥 Baixar dados do estado {estado.sigla}"
+        descricao = f"Dados do estado {estado.nome}"
     elif nivel == "N2" and regiao:
         # Nível região - dados dos estados da região
         df = exportador_service.gerar_dados_estados(regiao.id)
         nome_arquivo = f"dados_regiao_{regiao.sigla.lower()}"
         label = f"📥 Baixar dados da região {regiao.nome}"
+        descricao = f"Estados da região {regiao.nome}"
     else:
         # Nível Brasil - dados de todos os estados
         df = exportador_service.gerar_dados_brasil()
         nome_arquivo = "dados_brasil"
         label = "📥 Baixar dados do Brasil"
+        descricao = "Todos os estados do Brasil"
     
     # Verificar se há dados
     if df.empty:
@@ -60,17 +64,21 @@ def render_export_button(
         )
     
     with col2:
-        # Botão Excel
-        excel_data = exportador_service.exportar_para_excel(df)
-        st.download_button(
-            label="📊 Excel",
-            data=excel_data,
-            file_name=f"{nome_arquivo}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            key=f"excel_{nome_arquivo}"
-        )
+        # Botão Excel (com fallback)
+        try:
+            excel_data = exportador_service.exportar_para_excel(df)
+            st.download_button(
+                label="📊 Excel",
+                data=excel_data,
+                file_name=f"{nome_arquivo}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key=f"excel_{nome_arquivo}"
+            )
+        except Exception as e:
+            # Se falhar, mostrar mensagem e oferecer apenas CSV
+            st.warning("⚠️ Exportação para Excel indisponível. Use o formato CSV.")
     
     with col3:
         # Informação de quantos registros
-        st.caption(f"📊 {len(df)} registros | Formato: CSV/Excel")
+        st.caption(f"📊 {len(df)} registros | {descricao}")
