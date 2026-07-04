@@ -13,15 +13,13 @@ from src.config.settings import MAP_HEIGHT
 
 def render_population_map(
     dados_mapa: List[DadosMapa],
-    ranking_data: List[RankingItem]
+    ranking_data: List[RankingItem],
+    titulo: str = "🗺️ Mapa: população por estado"
 ):
     """
     Renderiza mapa de população por estado
     """
-    st.markdown(
-        '<div class="section-title">🗺️ Mapa: população por estado</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
     
     if not dados_mapa:
         st.info("Não foi possível carregar os dados para o mapa.")
@@ -57,11 +55,14 @@ def render_location_map(
     dados: List[dict],
     lat_key: str = "lat",
     lon_key: str = "lon",
-    popup_template: Optional[str] = None
+    popup_template: Optional[str] = None,
+    titulo: str = "🗺️ Mapa"
 ):
     """
     Renderiza mapa com marcadores em cluster
     """
+    st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
+    
     if not dados:
         st.info("Sem dados para exibir no mapa.")
         return
@@ -74,6 +75,8 @@ def render_location_map(
     )
     
     if mapa:
+        st.markdown('<div class="folium-map-container">', unsafe_allow_html=True)
         st_folium(mapa, use_container_width=True, height=MAP_HEIGHT, returned_objects=[])
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.warning("Não foi possível gerar o mapa.")
