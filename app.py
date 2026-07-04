@@ -19,6 +19,7 @@ from src.ui.hero import render_hero_section
 from src.ui.cards import render_indicators_cards
 from src.ui.charts import render_ranking_chart
 from src.ui.map_view import render_population_map
+from src.ui.export_button import render_export_button
 
 from src.services.localidades import localidades_service
 from src.services.agregados import agregados_service
@@ -142,6 +143,18 @@ def main():
         card4_unit=card4_unit,
         card4_foot=card4_foot
     )
+    
+    # ==================== BOTÃO DE EXPORTAÇÃO ====================
+    st.markdown("---")
+    st.markdown("### 📊 Exportar Dados")
+    
+    render_export_button(
+        estado=selecoes["estado"],
+        regiao=selecoes["regiao"],
+        nivel=nivel
+    )
+    st.markdown("---")
+    # ============================================================
     
     # Renderizar gráfico de ranking
     st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
