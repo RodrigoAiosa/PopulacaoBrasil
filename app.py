@@ -111,7 +111,7 @@ def main():
         highlight_nome = None
     
     else:
-        # Nível Brasil
+        # Nível Brasil (seleção padrão)
         todos_estados = localidades_service.get_estados()
         peer_codigos = [e.id for e in todos_estados]
         peer_nomes = [e.nome for e in todos_estados]
