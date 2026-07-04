@@ -27,7 +27,6 @@ from src.models.schemas import IndicadorDemografico
 from src.utils.formatters import fmt_int
 from src.utils.constants import UI_TEXTS
 from src.api.endpoints import NiveisTerritoriais
-from src.api.ibge_client import ibge_client
 
 
 def main():
@@ -36,18 +35,6 @@ def main():
     # Injetar CSS
     st.markdown(get_css(), unsafe_allow_html=True)
     
-    # Verificar conexão com a API
-    with st.spinner("🔄 Verificando conexão com a API do IBGE..."):
-        connection_ok = ibge_client.test_connection()
-    
-    if not connection_ok:
-        st.warning(
-            "⚠️ **Modo Offline**\n\n"
-            "Não foi possível conectar à API do IBGE. "
-            "O aplicativo usará dados de fallback (limitados). "
-            "Verifique sua conexão com a internet e recarregue a página."
-        )
-    
     # Renderizar sidebar e obter seleções
     selecoes = sidebar_filters.render()
     
@@ -55,9 +42,8 @@ def main():
     codigo = selecoes["codigo"]
     modo_offline = selecoes.get("modo_offline", False)
     
-    # Buscar indicadores
-    with st.spinner("📊 Carregando dados demográficos..."):
-        indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
+    # Buscar indicadores (sem spinner para transição instantânea)
+    indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
     
     # Determinar contexto para o quarto card e ranking
     if selecoes["municipio"]:
@@ -161,20 +147,48 @@ def main():
     st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
     render_ranking_chart(ranking, chart_title, highlight_nome)
     
-    # Renderizar mapa
-    # Preparar dados para o mapa (sempre em nível nacional para o mapa)
+    # Renderizar mapa - FILTRADO POR REGIÃO
+    # Preparar dados para o mapa baseado na seleção
     todos_estados = localidades_service.get_estados()
-    ranking_mapa = agregados_service.get_ranking_populacao(
-        NiveisTerritoriais.ESTADO,
-        [e.id for e in todos_estados],
-        [e.nome for e in todos_estados]
-    )
+    
+    # Filtrar estados pela região selecionada
+    if selecoes["regiao"]:
+        # Se uma região está selecionada, mostrar apenas os estados dela
+        estados_filtrados = localidades_service.get_estados(selecoes["regiao"].id)
+        estados_para_mapa = [
+            {"nome": e.nome, "sigla": e.sigla} for e in estados_filtrados
+        ]
+        codigos_para_mapa = [e.id for e in estados_filtrados]
+        nomes_para_mapa = [e.nome for e in estados_filtrados]
+        
+        ranking_mapa = agregados_service.get_ranking_populacao(
+            NiveisTerritoriais.ESTADO,
+            codigos_para_mapa,
+            nomes_para_mapa
+        )
+    else:
+        # Sem região selecionada, mostrar todos os estados
+        estados_para_mapa = [
+            {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
+        ]
+        ranking_mapa = agregados_service.get_ranking_populacao(
+            NiveisTerritoriais.ESTADO,
+            [e.id for e in todos_estados],
+            [e.nome for e in todos_estados]
+        )
     
     dados_mapa = mapas_service.preparar_dados_mapa(
         ranking_mapa,
-        [{"nome": e.nome, "sigla": e.sigla} for e in todos_estados]
+        estados_para_mapa
     )
-    render_population_map(dados_mapa, ranking_mapa)
+    
+    # Título do mapa dinâmico
+    if selecoes["regiao"]:
+        titulo_mapa = f"🗺️ Mapa: população por estado - Região {selecoes['regiao'].nome}"
+    else:
+        titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
+    
+    render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
     
     # Rodapé
     st.caption(UI_TEXTS["source"])
