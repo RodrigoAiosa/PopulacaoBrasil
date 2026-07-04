@@ -134,16 +134,15 @@ class SidebarFilters:
             )
             self.municipio_selecionado = None
         
-        # Status de conexão
-        if self._connection_error:
-            st.sidebar.warning("📡 Modo offline - dados limitados")
-        
-        # Rodapé da sidebar
+        # ==================== BOTÃO DE EXPORTAÇÃO ====================
         st.sidebar.markdown("---")
-        st.sidebar.caption(
-            "Fonte: [API de Localidades e Agregados do IBGE]"
-            "(https://servicodados.ibge.gov.br/api/docs) — dados públicos e gratuitos."
-        )
+        self._render_export_button()
+        # ============================================================
+        
+        # ==================== LINKEDIN RODAPÉ ====================
+        st.sidebar.markdown("---")
+        self._render_linkedin_footer()
+        # ============================================================
         
         return {
             "regiao": self.regiao_selecionada,
@@ -155,6 +154,95 @@ class SidebarFilters:
             "nome_local": self._get_nome_local(),
             "modo_offline": self._connection_error
         }
+    
+    def _render_export_button(self):
+        """
+        Renderiza o botão de exportação na sidebar
+        """
+        from src.services.exportador import exportador_service
+        from src.api.endpoints import NiveisTerritoriais
+        
+        st.sidebar.markdown("### 📊 Exportar Dados")
+        st.sidebar.caption("Baixe os dados em CSV")
+        
+        # Determinar o tipo de dados a exportar
+        nivel = self._determinar_nivel()
+        
+        if nivel == "N6" and self.estado_selecionado:
+            # Nível município - dados dos municípios do estado
+            df = exportador_service.gerar_dados_municipios_estado(self.estado_selecionado.id)
+            nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
+            label = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
+        
+        elif nivel == "N3" and self.estado_selecionado:
+            # Nível estado - dados do estado
+            df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id if self.regiao_selecionada else None)
+            nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
+            label = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
+        
+        elif nivel == "N2" and self.regiao_selecionada:
+            # Nível região - dados dos estados da região
+            df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id)
+            nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
+            label = f"📥 CSV - Região {self.regiao_selecionada.nome}"
+        
+        else:
+            # Nível Brasil - dados de TODOS os municípios
+            df = exportador_service.gerar_dados_todos_municipios()
+            nome_arquivo = "dados_todos_municipios_brasil"
+            label = "📥 CSV - Todos os municípios"
+        
+        # Verificar se há dados
+        if df.empty:
+            st.sidebar.info("ℹ️ Sem dados disponíveis")
+            return
+        
+        # Botão de download
+        csv_data = exportador_service.exportar_para_csv(df)
+        st.sidebar.download_button(
+            label=label,
+            data=csv_data,
+            file_name=f"{nome_arquivo}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key=f"sidebar_csv_{nome_arquivo}"
+        )
+        
+        # Mostrar quantidade de registros
+        st.sidebar.caption(f"📊 {len(df)} registros")
+    
+    def _render_linkedin_footer(self):
+        """
+        Renderiza o rodapé com logo do LinkedIn
+        """
+        linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
+        
+        # HTML com logo do LinkedIn
+        linkedin_html = f"""
+        <div style="text-align: center; padding: 10px 0;">
+            <a href="{linkedin_url}" target="_blank" style="text-decoration: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#EAF2EE">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                </svg>
+                <br>
+                <span style="color: #EAF2EE; font-size: 12px; opacity: 0.7;">Rodrigo Aiôsa</span>
+            </a>
+        </div>
+        """
+        
+        st.sidebar.markdown(linkedin_html, unsafe_allow_html=True)
+        
+        # Versão alternativa com texto simples (caso o SVG não funcione)
+        st.sidebar.markdown(
+            f"""
+            <div style="text-align: center; padding: 5px 0;">
+                <a href="{linkedin_url}" target="_blank" style="color: #EAF2EE; text-decoration: none; font-size: 13px; opacity: 0.8;">
+                    🔗 linkedin.com/in/rodrigoaiosa
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     
     def _determinar_nivel(self) -> str:
         """Determina o nível territorial baseado nas seleções"""
