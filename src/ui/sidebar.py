@@ -37,21 +37,13 @@ class SidebarFilters:
             self.regioes = localidades_service.get_regioes()
             if not self.regioes:
                 self._connection_error = True
-                st.sidebar.error(
+                st.sidebar.warning(
                     "⚠️ Não foi possível carregar os dados do IBGE.\n"
-                    "Usando dados de fallback (limitados).\n"
-                    "Verifique sua conexão com a internet."
+                    "Usando dados de fallback (limitados)."
                 )
-                # Usar fallback com dados estáticos
-                self.regioes = self._get_fallback_regioes()
         except Exception as e:
             self._connection_error = True
-            st.sidebar.error(
-                f"⚠️ Erro ao conectar com a API do IBGE.\n"
-                f"Usando dados de fallback.\n"
-                f"Detalhes: {str(e)}"
-            )
-            self.regioes = self._get_fallback_regioes()
+            st.sidebar.warning(f"⚠️ Erro ao conectar com a API: {str(e)[:100]}...")
         
         # Seletor de região
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
@@ -68,7 +60,7 @@ class SidebarFilters:
                 self.regiao_selecionada.id if self.regiao_selecionada else None
             )
         except Exception as e:
-            st.sidebar.warning(f"⚠️ Erro ao carregar estados: {str(e)}")
+            st.sidebar.warning(f"⚠️ Erro ao carregar estados: {str(e)[:100]}...")
             self.estados = []
         
         estado_labels = [
@@ -90,7 +82,7 @@ class SidebarFilters:
                     self.estado_selecionado.id
                 )
             except Exception as e:
-                st.sidebar.warning(f"⚠️ Erro ao carregar municípios: {str(e)}")
+                st.sidebar.warning(f"⚠️ Erro ao carregar municípios: {str(e)[:100]}...")
                 self.municipios = []
             
             municipio_nomes = [m.nome for m in self.municipios]
@@ -131,17 +123,6 @@ class SidebarFilters:
             "nome_local": self._get_nome_local(),
             "modo_offline": self._connection_error
         }
-    
-    def _get_fallback_regioes(self) -> List[Regiao]:
-        """Retorna dados de fallback para regiões"""
-        fallback_data = [
-            {"id": 1, "nome": "Norte", "sigla": "N"},
-            {"id": 2, "nome": "Nordeste", "sigla": "NE"},
-            {"id": 3, "nome": "Sudeste", "sigla": "SE"},
-            {"id": 4, "nome": "Sul", "sigla": "S"},
-            {"id": 5, "nome": "Centro-Oeste", "sigla": "CO"},
-        ]
-        return [Regiao.from_api(item) for item in fallback_data]
     
     def _determinar_nivel(self) -> str:
         """Determina o nível territorial baseado nas seleções"""
