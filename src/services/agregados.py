@@ -17,8 +17,33 @@ class AgregadosService:
     @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
     def get_metadados_agregado(agregado_id: int) -> Dict[str, Any]:
         """Obtém metadados de um agregado"""
-        url = APIEndpoints.get_agregado_metadados_url(agregado_id)
-        return ibge_client.get_json_cached(url)
+        try:
+            url = APIEndpoints.get_agregado_metadados_url(agregado_id)
+            data = ibge_client.get_json_cached(url)
+            if data:
+                return data
+        except Exception as e:
+            st.warning(f"⚠️ Não foi possível obter metadados do agregado {agregado_id}: {str(e)}")
+        
+        # Fallback para metadados do agregado de população
+        if agregado_id == Agregados.POPULACAO_ESTIMADA:
+            return {
+                "id": Agregados.POPULACAO_ESTIMADA,
+                "nome": "Estimativas da População",
+                "variaveis": [
+                    {"id": Variaveis.POPULACAO_ESTIMADA, "nome": "População residente estimada", "unidade": "Pessoas"}
+                ]
+            }
+        elif agregado_id == Agregados.CENSO_AREA_DENSIDADE:
+            return {
+                "id": Agregados.CENSO_AREA_DENSIDADE,
+                "nome": "Censo 2022 - Área e Densidade",
+                "variaveis": [
+                    {"id": 1, "nome": "Área territorial", "unidade": "km²"},
+                    {"id": 2, "nome": "Densidade demográfica", "unidade": "hab/km²"}
+                ]
+            }
+        return {}
     
     @staticmethod
     def find_variavel_id(agregado_id: int, palavra_chave: str) -> Optional[Tuple[int, str, str]]:
@@ -26,12 +51,22 @@ class AgregadosService:
         Busca ID de uma variável por palavra-chave no nome
         Retorna (id, nome, unidade) ou None
         """
-        meta = AgregadosService.get_metadados_agregado(agregado_id)
-        palavra_chave = palavra_chave.lower()
+        try:
+            meta = AgregadosService.get_metadados_agregado(agregado_id)
+            palavra_chave = palavra_chave.lower()
+            
+            for var in meta.get("variaveis", []):
+                if palavra_chave in var["nome"].lower():
+                    return var["id"], var["nome"], var.get("unidade", "")
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao buscar variável: {str(e)}")
         
-        for var in meta.get("variaveis", []):
-            if palavra_chave in var["nome"].lower():
-                return var["id"], var["nome"], var.get("unidade", "")
+        # Fallback: retorna IDs conhecidos
+        if agregado_id == Agregados.CENSO_AREA_DENSIDADE:
+            if "área" in palavra_chave.lower():
+                return 1, "Área territorial", "km²"
+            elif "densidade" in palavra_chave.lower():
+                return 2, "Densidade demográfica", "hab/km²"
         return None
     
     @staticmethod
@@ -46,25 +81,28 @@ class AgregadosService:
         """
         Consulta valor mais recente de uma variável para uma localidade
         """
-        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
-        localidade = f"{nivel}[{codigo}]"
-        
         try:
+            url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
+            localidade = f"{nivel}[{codigo}]"
+            
             data = ibge_client.get_json_cached(url, params={"localidades": localidade})
-        except Exception:
-            return None
-        
-        try:
+            if not data:
+                return None
+            
             series = data[0]["resultados"][0]["series"]
             if not series:
                 return None
             
             serie = series[0]["serie"]
+            if not serie:
+                return None
+            
             ultimo_periodo = sorted(serie.keys())[-1]
             valor_bruto = serie[ultimo_periodo]
             
             return ibge_client.parse_sidra_value(valor_bruto)
-        except (KeyError, IndexError, TypeError):
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao obter valor do agregado: {str(e)}")
             return None
     
     @staticmethod
