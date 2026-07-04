@@ -19,7 +19,6 @@ from src.ui.hero import render_hero_section
 from src.ui.cards import render_indicators_cards
 from src.ui.charts import render_ranking_chart
 from src.ui.map_view import render_population_map
-from src.ui.export_button import render_export_button
 
 from src.services.localidades import localidades_service
 from src.services.agregados import agregados_service
@@ -190,17 +189,6 @@ def main():
         titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
     
     render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
-    
-    # ==================== BOTÃO DE EXPORTAÇÃO ====================
-    st.markdown("---")
-    
-    render_export_button(
-        estado=selecoes["estado"],
-        regiao=selecoes["regiao"],
-        nivel=nivel
-    )
-    st.markdown("---")
-    # ============================================================
     
     # Rodapé
     st.caption(UI_TEXTS["source"])
