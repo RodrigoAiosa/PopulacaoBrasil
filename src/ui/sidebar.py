@@ -24,6 +24,8 @@ class SidebarFilters:
         self.municipio_selecionado: Optional[Municipio] = None
         
         self._connection_error = False
+        self._ultima_regiao = None
+        self._ultimo_estado = None
     
     def render(self) -> Dict[str, Any]:
         """
@@ -47,14 +49,28 @@ class SidebarFilters:
         
         # Seletor de região
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
-        regiao_nome_sel = st.sidebar.selectbox("Região", regiao_nomes)
+        regiao_nome_sel = st.sidebar.selectbox(
+            "Região", 
+            regiao_nomes,
+            key="regiao_select"
+        )
         
+        # Verificar se a região mudou
+        nova_regiao = None
         if regiao_nome_sel != FILTER_OPTIONS["todas_regioes"]:
-            self.regiao_selecionada = next(
+            nova_regiao = next(
                 r for r in self.regioes if r.nome == regiao_nome_sel
             )
         
-        # Seletor de estado
+        # Se a região mudou, resetar estado e município
+        if self.regiao_selecionada != nova_regiao:
+            self.regiao_selecionada = nova_regiao
+            self.estado_selecionado = None
+            self.municipio_selecionado = None
+            # Forçar recarregamento da página para transição instantânea
+            st.rerun()
+        
+        # Seletor de estado (atualizado com base na região)
         try:
             self.estados = localidades_service.get_estados(
                 self.regiao_selecionada.id if self.regiao_selecionada else None
@@ -66,14 +82,25 @@ class SidebarFilters:
         estado_labels = [
             f'{e.nome} ({e.sigla})' for e in self.estados
         ]
+        
+        # Manter o estado selecionado se ainda estiver na lista
         estado_label_sel = st.sidebar.selectbox(
             "Estado",
-            [FILTER_OPTIONS["todos_estados"]] + estado_labels
+            [FILTER_OPTIONS["todos_estados"]] + estado_labels,
+            key="estado_select"
         )
         
+        novo_estado = None
         if estado_label_sel != FILTER_OPTIONS["todos_estados"]:
             idx = estado_labels.index(estado_label_sel)
-            self.estado_selecionado = self.estados[idx]
+            novo_estado = self.estados[idx]
+        
+        # Se o estado mudou, resetar município
+        if self.estado_selecionado != novo_estado:
+            self.estado_selecionado = novo_estado
+            self.municipio_selecionado = None
+            if novo_estado is not None:
+                st.rerun()
         
         # Seletor de município
         if self.estado_selecionado:
@@ -88,19 +115,24 @@ class SidebarFilters:
             municipio_nomes = [m.nome for m in self.municipios]
             municipio_nome_sel = st.sidebar.selectbox(
                 "Cidade / Município",
-                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes
+                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes,
+                key="municipio_select"
             )
             
             if municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
                 self.municipio_selecionado = next(
                     m for m in self.municipios if m.nome == municipio_nome_sel
                 )
+            else:
+                self.municipio_selecionado = None
         else:
             st.sidebar.selectbox(
                 "Cidade / Município",
                 ["Selecione um estado primeiro"],
-                disabled=True
+                disabled=True,
+                key="municipio_disabled"
             )
+            self.municipio_selecionado = None
         
         # Status de conexão
         if self._connection_error:
