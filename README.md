@@ -22,10 +22,14 @@ chave de API é necessária.
 ## Estrutura
 
 ```
-app.py                  # layout, CSS e lógica da página
-services/ibge_api.py    # funções de acesso às APIs do IBGE, com cache
+app.py             # tudo em um único arquivo: API, layout, CSS e lógica
 requirements.txt
 ```
+
+Optei por um arquivo único (em vez de um pacote `services/`) porque plataformas
+de deploy como o Streamlit Community Cloud às vezes não versionam corretamente
+subpastas/`__init__.py` vazios, o que gera `ModuleNotFoundError`. Um único
+`app.py` elimina esse tipo de problema de import.
 
 ## Como funciona o filtro
 
