@@ -1,7 +1,0 @@
-streamlit
-plotly
-folium
-streamlit-folium
-requests
-python-dotenv
-pydantic
