@@ -1,0 +1,294 @@
+diff --git a/app.py b/app.py
+index ca731cc..1b201ae 100644
+--- a/app.py
++++ b/app.py
+@@ -144,8 +144,15 @@ def main():
+     )
+     
+     # Renderizar gráfico de ranking
++    # Na visão Brasil (nenhum filtro selecionado), mostramos TODOS os estados
++    # (27 + DF) em vez de cortar no top 10 padrão.
++    esta_na_visao_brasil = not (
++        selecoes["regiao"] or selecoes["estado"] or selecoes["municipio"]
++    )
++    max_items_ranking = len(ranking) if esta_na_visao_brasil else None
++
+     st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
+-    render_ranking_chart(ranking, chart_title, highlight_nome)
++    render_ranking_chart(ranking, chart_title, highlight_nome, max_items=max_items_ranking)
+     
+     # Renderizar mapa - FILTRADO POR REGIÃO
+     # Preparar dados para o mapa baseado na seleção
+diff --git a/src/services/agregados.py b/src/services/agregados.py
+index 4a9243d..14f1b9e 100644
+--- a/src/services/agregados.py
++++ b/src/services/agregados.py
+@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional, Dict, Any
+ import streamlit as st
+ import requests
+ 
+-from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais
++from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais, SIDRA_INVALID_SYMBOLS
+ from src.models.schemas import IndicadorDemografico, RankingItem
+ from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
+ 
+@@ -34,6 +34,23 @@ def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, p
+         return None
+ 
+ 
++@st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
++def _fetch_valores_agregado_lote(agregado_id: int, variavel_id: int, localidade_query: str, periodo: str = "-1") -> Optional[Any]:
++    """
++    Função cacheada para buscar valores de VÁRIAS localidades em UMA ÚNICA requisição.
++    localidade_query aceita a sintaxe nativa da API do IBGE, ex:
++    "N3[all]" (todos os estados), "N6[N3[35]]" (municípios de SP),
++    "N3[11,12,13]" (estados específicos).
++    """
++    try:
++        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
++        resp = requests.get(url, params={"localidades": localidade_query}, timeout=API_TIMEOUT)
++        resp.raise_for_status()
++        return resp.json()
++    except Exception:
++        return None
++
++
+ class AgregadosService:
+     """Serviço para operações com agregados do SIDRA"""
+     
+@@ -134,6 +151,51 @@ class AgregadosService:
+             st.warning(f"⚠️ Erro ao obter valor do agregado: {str(e)}")
+             return None
+     
++    @staticmethod
++    def get_valores_populacao_lote(
++        localidade_query: str,
++        periodo: str = "-1"
++    ) -> Dict[int, float]:
++        """
++        Busca a população de VÁRIAS localidades em UMA ÚNICA requisição HTTP
++        (em vez de uma requisição por localidade). Retorna {codigo_ibge: populacao}.
++        """
++        try:
++            data = _fetch_valores_agregado_lote(
++                Agregados.POPULACAO_ESTIMADA,
++                Variaveis.POPULACAO_ESTIMADA,
++                localidade_query,
++                periodo
++            )
++            if not data:
++                return {}
++
++            series = data[0]["resultados"][0]["series"]
++            resultado: Dict[int, float] = {}
++
++            for item in series:
++                try:
++                    localidade_id = int(item["localidade"]["id"])
++                    serie = item["serie"]
++                    if not serie:
++                        continue
++
++                    ultimo_periodo = sorted(serie.keys())[-1]
++                    valor_bruto = serie[ultimo_periodo]
++
++                    if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
++                        continue
++
++                    clean_value = str(valor_bruto).replace(",", ".")
++                    resultado[localidade_id] = float(clean_value)
++                except (KeyError, ValueError, TypeError):
++                    continue
++
++            return resultado
++        except Exception as e:
++            st.warning(f"⚠️ Erro ao obter valores em lote: {str(e)}")
++            return {}
++
+     @staticmethod
+     def get_indicadores_demograficos(nivel: str, codigo: int) -> IndicadorDemografico:
+         """
+@@ -188,19 +250,26 @@ class AgregadosService:
+         nomes: List[str]
+     ) -> List[RankingItem]:
+         """
+-        Gera ranking populacional para uma lista de localidades
++        Gera ranking populacional para uma lista de localidades.
++
++        Performance: faz UMA ÚNICA requisição HTTP para todas as localidades
++        (usando a sintaxe nativa da API do IBGE "N3[cod1,cod2,...]"), em vez
++        de uma requisição por localidade. Isso torna as trocas de filtro no
++        menu praticamente instantâneas, mesmo para níveis com muitos itens
++        (ex: os ~645 municípios de São Paulo).
+         """
+-        resultados = []
+-        for codigo, nome in zip(codigos, nomes):
+-            valor = AgregadosService.get_valor_agregado(
+-                Agregados.POPULACAO_ESTIMADA,
+-                Variaveis.POPULACAO_ESTIMADA,
+-                nivel,
+-                codigo
+-            )
+-            if valor is not None:
+-                resultados.append(RankingItem(nome=nome, populacao=valor))
+-        
++        if not codigos:
++            return []
++
++        query = ",".join(str(c) for c in codigos)
++        valores = AgregadosService.get_valores_populacao_lote(f"{nivel}[{query}]")
++
++        resultados = [
++            RankingItem(nome=nome, populacao=valores[codigo])
++            for codigo, nome in zip(codigos, nomes)
++            if codigo in valores
++        ]
++
+         return sorted(resultados, key=lambda r: r.populacao, reverse=True)
+     
+     @staticmethod
+diff --git a/src/services/exportador.py b/src/services/exportador.py
+index 15ebbc8..2c428bc 100644
+--- a/src/services/exportador.py
++++ b/src/services/exportador.py
+@@ -18,32 +18,34 @@ class ExportadorService:
+     def gerar_dados_todos_municipios() -> pd.DataFrame:
+         """
+         Gera dados de TODOS os municípios do Brasil
++
++        Performance: busca a população de TODOS os municípios em UMA ÚNICA
++        requisição HTTP ("N6[all]"), em vez de uma requisição por município
++        (o Brasil tem mais de 5.500 municípios).
+         """
+         # Buscar todos os estados
+         estados = localidades_service.get_estados()
+         
+         if not estados:
+             return pd.DataFrame()
+-        
++
++        # Uma única chamada para a população de todos os municípios do país
++        populacoes = agregados_service.get_valores_populacao_lote(
++            f"{NiveisTerritoriais.MUNICIPIO}[all]"
++        )
++
+         # Buscar dados de todos os municípios
+         todos_dados = []
+-        total_geral = 0
+-        
++
+         for estado in estados:
+             municipios = localidades_service.get_municipios(estado.id)
+             
+             if not municipios:
+                 continue
+             
+-            # Buscar população de cada município
+             dados_estado = []
+             for municipio in municipios:
+-                pop = agregados_service.get_valor_agregado(
+-                    agregado_id=6579,
+-                    variavel_id=9324,
+-                    nivel=NiveisTerritoriais.MUNICIPIO,
+-                    codigo=municipio.id
+-                )
++                pop = populacoes.get(municipio.id)
+                 
+                 if pop is not None:
+                     dados_estado.append({
+@@ -55,7 +57,6 @@ class ExportadorService:
+                         "municipio_nome": municipio.nome,
+                         "populacao": pop
+                     })
+-                    total_geral += pop
+             
+             if dados_estado:
+                 todos_dados.extend(dados_estado)
+@@ -111,6 +112,10 @@ class ExportadorService:
+     def gerar_dados_municipios_estado(estado_id: int) -> pd.DataFrame:
+         """
+         Gera dados completos dos municípios de um estado com percentuais
++
++        Performance: busca a população de TODOS os municípios do estado em
++        UMA ÚNICA requisição HTTP ("N6[N3[estado_id]]"), em vez de uma
++        requisição por município.
+         """
+         # Buscar dados
+         municipios = localidades_service.get_municipios(estado_id)
+@@ -118,16 +123,15 @@ class ExportadorService:
+         
+         if not municipios or not estado:
+             return pd.DataFrame()
+-        
+-        # Buscar população de cada município
++
++        # Uma única chamada para a população de todos os municípios do estado
++        populacoes = agregados_service.get_valores_populacao_lote(
++            f"{NiveisTerritoriais.MUNICIPIO}[{NiveisTerritoriais.ESTADO}[{estado_id}]]"
++        )
++
+         dados = []
+         for municipio in municipios:
+-            pop = agregados_service.get_valor_agregado(
+-                agregado_id=6579,
+-                variavel_id=9324,
+-                nivel=NiveisTerritoriais.MUNICIPIO,
+-                codigo=municipio.id
+-            )
++            pop = populacoes.get(municipio.id)
+             
+             if pop is not None:
+                 dados.append({
+@@ -202,22 +206,25 @@ class ExportadorService:
+     def gerar_dados_estados(regiao_id: Optional[int] = None) -> pd.DataFrame:
+         """
+         Gera dados dos estados (com ou sem filtro de região)
++
++        Performance: busca a população de todos os estados relevantes em
++        UMA ÚNICA requisição HTTP, em vez de uma requisição por estado.
+         """
+         # Buscar estados
+         estados = localidades_service.get_estados(regiao_id)
+         
+         if not estados:
+             return pd.DataFrame()
+-        
+-        # Buscar população de cada estado
++
++        # Uma única chamada para a população de todos os estados
++        query = f"{NiveisTerritoriais.REGIAO}[{regiao_id}]" if regiao_id else "all"
++        populacoes = agregados_service.get_valores_populacao_lote(
++            f"{NiveisTerritoriais.ESTADO}[{query}]"
++        )
++
+         dados = []
+         for estado in estados:
+-            pop = agregados_service.get_valor_agregado(
+-                agregado_id=6579,
+-                variavel_id=9324,
+-                nivel=NiveisTerritoriais.ESTADO,
+-                codigo=estado.id
+-            )
++            pop = populacoes.get(estado.id)
+             
+             if pop is not None:
+                 dados.append({
+diff --git a/src/ui/charts.py b/src/ui/charts.py
+index 7f3b01d..5b85d29 100644
+--- a/src/ui/charts.py
++++ b/src/ui/charts.py
+@@ -54,8 +54,13 @@ def render_ranking_chart(
+     )
+     
+     # Layout
++    # Altura proporcional à quantidade de itens, para não espremer as barras
++    # quando exibimos a lista completa (ex: os 27 estados na visão Brasil).
++    altura_por_item = 26
++    altura_dinamica = max(CHART_CONFIG["chart_height"], len(top) * altura_por_item)
++
+     fig.update_layout(
+-        height=CHART_CONFIG["chart_height"],
++        height=altura_dinamica,
+         margin=dict(l=10, r=10, t=10, b=10),
+         plot_bgcolor="rgba(0,0,0,0)",
+         paper_bgcolor="rgba(0,0,0,0)",
