@@ -3,16 +3,14 @@ Cliente base para APIs do IBGE com tratamento de erros robusto
 """
 import requests
 from typing import Dict, Any, Optional
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import streamlit as st
-import time
 
-from src.config.settings import API_TIMEOUT, API_MAX_RETRIES
+from src.config.settings import API_TIMEOUT
 from src.api.endpoints import SIDRA_INVALID_SYMBOLS
 
 
 class IBGEClient:
-    """Cliente HTTP para as APIs do IBGE com retry, cache e fallback"""
+    """Cliente HTTP para as APIs do IBGE com cache e fallback"""
     
     def __init__(self):
         self.timeout = API_TIMEOUT
@@ -21,18 +19,10 @@ class IBGEClient:
             "User-Agent": "IBGE-Dashboard/1.0",
             "Accept": "application/json"
         })
-        self._cache = {}
-        self._cache_timestamps = {}
     
-    @retry(
-        stop=stop_after_attempt(API_MAX_RETRIES),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((requests.RequestException, ConnectionError))
-    )
     def _get_json(self, url: str, params: Optional[Dict] = None) -> Optional[Any]:
         """
         Faz requisição GET e retorna JSON.
-        Com retry automático em caso de falha.
         """
         try:
             resp = self.session.get(url, params=params, timeout=self.timeout)
@@ -55,11 +45,14 @@ class IBGEClient:
             return None
     
     @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
-    def get_json_cached(self, url: str, params: Optional[Dict] = None, ttl: int = 86400) -> Optional[Any]:
+    def get_json_cached(self, url: str, params: Optional[Dict] = None) -> Optional[Any]:
         """
         Versão com cache do Streamlit para requisições GET.
+        Usa '_self' para evitar hashing do objeto.
         """
-        return self._get_json(url, params)
+        # Criar uma instância temporária para a requisição
+        temp_client = IBGEClient()
+        return temp_client._get_json(url, params)
     
     def parse_sidra_value(self, value: Any) -> Optional[float]:
         """
@@ -89,3 +82,23 @@ class IBGEClient:
 
 # Instância global do cliente
 ibge_client = IBGEClient()
+
+
+# Funções auxiliares para cache (evitam problemas de hashing)
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_json_cached_safe(url: str, params: Optional[Dict] = None) -> Optional[Any]:
+    """
+    Função segura para cache de requisições JSON.
+    """
+    try:
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": "IBGE-Dashboard/1.0",
+            "Accept": "application/json"
+        })
+        resp = session.get(url, params=params, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        st.warning(f"⚠️ Erro na requisição: {str(e)}")
+        return None
