@@ -1,12 +1,14 @@
 """
 Painel Demográfico do Brasil — dados públicos do IBGE
 Rode com: streamlit run app.py
+
+Arquivo único (sem pacotes internos) para evitar problemas de import
+em plataformas de deploy como o Streamlit Community Cloud.
 """
 
+import requests
 import streamlit as st
 import plotly.graph_objects as go
-
-from services import ibge_api as ibge
 
 st.set_page_config(
     page_title="Painel Demográfico do Brasil",
@@ -14,6 +16,110 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ---------------------------------------------------------------------------
+# Cliente IBGE (Localidades, Agregados/SIDRA, Malhas) — funções puras + cache
+# ---------------------------------------------------------------------------
+BASE_LOC = "https://servicodados.ibge.gov.br/api/v1/localidades"
+BASE_AGG = "https://servicodados.ibge.gov.br/api/v3/agregados"
+BASE_MALHA = "https://servicodados.ibge.gov.br/api/v3/malhas"
+TIMEOUT = 15
+
+AGREGADO_POPULACAO_ESTIMADA = 6579
+VARIAVEL_POPULACAO_ESTIMADA = 9324
+AGREGADO_CENSO_AREA_DENSIDADE = 4714
+SIDRA_SIMBOLOS_INVALIDOS = {"-", "..", "...", "X", ""}
+
+
+def _get_json(url, params=None):
+    resp = requests.get(url, params=params, timeout=TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_regioes():
+    data = _get_json(f"{BASE_LOC}/regioes")
+    return sorted(data, key=lambda r: r["nome"])
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_estados(regiao_id=None):
+    if regiao_id:
+        data = _get_json(f"{BASE_LOC}/regioes/{regiao_id}/estados")
+    else:
+        data = _get_json(f"{BASE_LOC}/estados")
+    return sorted(data, key=lambda e: e["nome"])
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_municipios(uf_id):
+    data = _get_json(f"{BASE_LOC}/estados/{uf_id}/municipios")
+    return sorted(data, key=lambda m: m["nome"])
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_metadados_agregado(agregado_id):
+    return _get_json(f"{BASE_AGG}/{agregado_id}/metadados")
+
+
+def find_variavel_id(agregado_id, palavra_chave):
+    meta = get_metadados_agregado(agregado_id)
+    palavra_chave = palavra_chave.lower()
+    for var in meta.get("variaveis", []):
+        if palavra_chave in var["nome"].lower():
+            return var["id"], var["nome"], var.get("unidade", "")
+    return None
+
+
+def _nivel_para_localidade(nivel, codigo):
+    return f"{nivel}[{codigo}]"
+
+
+@st.cache_data(ttl=60 * 60 * 6, show_spinner=False)
+def get_valor_agregado(agregado_id, variavel_id, nivel, codigo, periodo="-1"):
+    localidade = _nivel_para_localidade(nivel, codigo)
+    url = f"{BASE_AGG}/{agregado_id}/periodos/{periodo}/variaveis/{variavel_id}"
+    try:
+        data = _get_json(url, params={"localidades": localidade})
+    except requests.RequestException:
+        return None
+
+    try:
+        resultados = data[0]["resultados"][0]["series"]
+        if not resultados:
+            return None
+        serie = resultados[0]["serie"]
+        ultimo_periodo = sorted(serie.keys())[-1]
+        valor_bruto = serie[ultimo_periodo]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+    if valor_bruto in SIDRA_SIMBOLOS_INVALIDOS:
+        return None
+    try:
+        return float(str(valor_bruto).replace(",", "."))
+    except ValueError:
+        return None
+
+
+@st.cache_data(ttl=60 * 60 * 6, show_spinner=False)
+def get_ranking_populacao(nivel, codigos, nomes):
+    resultados = []
+    for codigo, nome in zip(codigos, nomes):
+        valor = get_valor_agregado(
+            AGREGADO_POPULACAO_ESTIMADA, VARIAVEL_POPULACAO_ESTIMADA, nivel, codigo
+        )
+        if valor is not None:
+            resultados.append({"nome": nome, "populacao": valor})
+    return sorted(resultados, key=lambda r: r["populacao"], reverse=True)
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def get_malha_estados():
+    url = f"{BASE_MALHA}/BR"
+    return _get_json(url, params={"resolucao": 2, "formato": "application/vnd.geo+json"})
+
 
 # ---------------------------------------------------------------------------
 # Design tokens & CSS global
@@ -194,13 +300,21 @@ TODAS_REGIOES = "Brasil — todas as regiões"
 TODOS_ESTADOS = "Todos os estados da seleção"
 TODOS_MUNICIPIOS = "Todos os municípios do estado"
 
-regioes = ibge.get_regioes()
+try:
+    regioes = get_regioes()
+except requests.RequestException:
+    st.error(
+        "Não foi possível conectar à API do IBGE agora. Verifique sua conexão "
+        "e recarregue a página."
+    )
+    st.stop()
+
 regiao_nome_sel = st.sidebar.selectbox(
     "Região", [TODAS_REGIOES] + [r["nome"] for r in regioes]
 )
 regiao_obj = next((r for r in regioes if r["nome"] == regiao_nome_sel), None)
 
-estados = ibge.get_estados(regiao_obj["id"] if regiao_obj else None)
+estados = get_estados(regiao_obj["id"] if regiao_obj else None)
 estado_labels = [f'{e["nome"]} ({e["sigla"]})' for e in estados]
 estado_label_sel = st.sidebar.selectbox("Estado", [TODOS_ESTADOS] + estado_labels)
 estado_obj = None
@@ -209,7 +323,7 @@ if estado_label_sel != TODOS_ESTADOS:
     estado_obj = estados[idx]
 
 if estado_obj:
-    municipios = ibge.get_municipios(estado_obj["id"])
+    municipios = get_municipios(estado_obj["id"])
     municipio_nomes = [m["nome"] for m in municipios]
     municipio_nome_sel = st.sidebar.selectbox(
         "Cidade / Município", [TODOS_MUNICIPIOS] + municipio_nomes
@@ -257,25 +371,25 @@ else:
 # Busca os indicadores
 # ---------------------------------------------------------------------------
 with st.spinner("Consultando a API do IBGE..."):
-    populacao = ibge.get_valor_agregado(
-        ibge.AGREGADO_POPULACAO_ESTIMADA, ibge.VARIAVEL_POPULACAO_ESTIMADA, nivel, codigo
+    populacao = get_valor_agregado(
+        AGREGADO_POPULACAO_ESTIMADA, VARIAVEL_POPULACAO_ESTIMADA, nivel, codigo
     )
 
-    area_info = ibge.find_variavel_id(ibge.AGREGADO_CENSO_AREA_DENSIDADE, "Área")
-    densidade_info = ibge.find_variavel_id(ibge.AGREGADO_CENSO_AREA_DENSIDADE, "Densidade")
+    area_info = find_variavel_id(AGREGADO_CENSO_AREA_DENSIDADE, "Área")
+    densidade_info = find_variavel_id(AGREGADO_CENSO_AREA_DENSIDADE, "Densidade")
 
-    area = ibge.get_valor_agregado(
-        ibge.AGREGADO_CENSO_AREA_DENSIDADE, area_info[0], nivel, codigo
+    area = get_valor_agregado(
+        AGREGADO_CENSO_AREA_DENSIDADE, area_info[0], nivel, codigo
     ) if area_info else None
-    densidade = ibge.get_valor_agregado(
-        ibge.AGREGADO_CENSO_AREA_DENSIDADE, densidade_info[0], nivel, codigo
+    densidade = get_valor_agregado(
+        AGREGADO_CENSO_AREA_DENSIDADE, densidade_info[0], nivel, codigo
     ) if densidade_info else None
 
     # Nº de municípios / contexto administrativo + ranking de um nível abaixo
     if municipio_obj:
         peer_codigos = tuple(m["id"] for m in municipios)
         peer_nomes = tuple(m["nome"] for m in municipios)
-        ranking = ibge.get_ranking_populacao("N6", peer_codigos, peer_nomes)
+        ranking = get_ranking_populacao("N6", peer_codigos, peer_nomes)
         posicao = next(
             (i + 1 for i, r in enumerate(ranking) if r["nome"] == municipio_obj["nome"]),
             None,
@@ -291,7 +405,7 @@ with st.spinner("Consultando a API do IBGE..."):
     elif estado_obj:
         peer_codigos = tuple(m["id"] for m in municipios)
         peer_nomes = tuple(m["nome"] for m in municipios)
-        ranking = ibge.get_ranking_populacao("N6", peer_codigos, peer_nomes)
+        ranking = get_ranking_populacao("N6", peer_codigos, peer_nomes)
         card4_label, card4_value, card4_unit, card4_foot = (
             "Municípios",
             fmt_int(len(municipios)),
@@ -303,8 +417,8 @@ with st.spinner("Consultando a API do IBGE..."):
     elif regiao_obj:
         peer_codigos = tuple(e["id"] for e in estados)
         peer_nomes = tuple(e["nome"] for e in estados)
-        ranking = ibge.get_ranking_populacao("N3", peer_codigos, peer_nomes)
-        total_municipios = sum(len(ibge.get_municipios(e["id"])) for e in estados)
+        ranking = get_ranking_populacao("N3", peer_codigos, peer_nomes)
+        total_municipios = sum(len(get_municipios(e["id"])) for e in estados)
         card4_label, card4_value, card4_unit, card4_foot = (
             "Municípios",
             fmt_int(total_municipios),
@@ -314,10 +428,10 @@ with st.spinner("Consultando a API do IBGE..."):
         chart_title = f"Estados da região {regiao_obj['nome']} por população"
         highlight_nome = None
     else:
-        todos_estados = ibge.get_estados()
+        todos_estados = get_estados()
         peer_codigos = tuple(e["id"] for e in todos_estados)
         peer_nomes = tuple(e["nome"] for e in todos_estados)
-        ranking = ibge.get_ranking_populacao("N3", peer_codigos, peer_nomes)
+        ranking = get_ranking_populacao("N3", peer_codigos, peer_nomes)
         card4_label, card4_value, card4_unit, card4_foot = (
             "Estados", "27", "", "+ Distrito Federal"
         )
@@ -399,20 +513,24 @@ else:
 st.markdown('<div class="section-title">Mapa: população por estado</div>', unsafe_allow_html=True)
 
 with st.spinner("Carregando malha geográfica..."):
-    geojson = ibge.get_malha_estados()
-    todos_estados_mapa = ibge.get_estados()
-    ranking_mapa = ibge.get_ranking_populacao(
+    try:
+        geojson = get_malha_estados()
+    except requests.RequestException:
+        geojson = None
+    todos_estados_mapa = get_estados()
+    ranking_mapa = get_ranking_populacao(
         "N3",
         tuple(e["id"] for e in todos_estados_mapa),
         tuple(e["nome"] for e in todos_estados_mapa),
     )
 
-# Descobre dinamicamente a chave de código no GeoJSON (ex.: "codarea")
-props_amostra = geojson["features"][0]["properties"] if geojson.get("features") else {}
-id_key = next(
-    (k for k in props_amostra if "cod" in k.lower() or k.lower() in ("id", "sigla")),
-    None,
-)
+id_key = None
+if geojson and geojson.get("features"):
+    props_amostra = geojson["features"][0]["properties"]
+    id_key = next(
+        (k for k in props_amostra if "cod" in k.lower() or k.lower() in ("id", "sigla")),
+        None,
+    )
 
 if id_key and ranking_mapa:
     nome_para_id = {e["nome"]: str(e["id"]) for e in todos_estados_mapa}
