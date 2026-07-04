@@ -20,65 +20,83 @@ def render_export_button(
     # Determinar o tipo de dados a exportar
     if nivel == "N6" and estado:
         # Nível município - dados dos municípios do estado
-        df = exportador_service.gerar_dados_municipios(estado.id)
+        df = exportador_service.gerar_dados_municipios_estado(estado.id)
         nome_arquivo = f"dados_municipios_{estado.sigla.lower()}"
         label = f"📥 Baixar dados dos municípios de {estado.sigla}"
-        descricao = f"Municípios do estado {estado.nome}"
+        descricao = f"Municípios do estado {estado.nome} ({len(df)} registros)"
+    
     elif nivel == "N3" and estado:
         # Nível estado - dados do estado
         df = exportador_service.gerar_dados_estados(regiao.id if regiao else None)
         nome_arquivo = f"dados_estado_{estado.sigla.lower()}"
         label = f"📥 Baixar dados do estado {estado.sigla}"
         descricao = f"Dados do estado {estado.nome}"
+    
     elif nivel == "N2" and regiao:
         # Nível região - dados dos estados da região
         df = exportador_service.gerar_dados_estados(regiao.id)
         nome_arquivo = f"dados_regiao_{regiao.sigla.lower()}"
         label = f"📥 Baixar dados da região {regiao.nome}"
-        descricao = f"Estados da região {regiao.nome}"
+        descricao = f"Estados da região {regiao.nome} ({len(df)} registros)"
+    
     else:
-        # Nível Brasil - dados de todos os estados
-        df = exportador_service.gerar_dados_brasil()
-        nome_arquivo = "dados_brasil"
-        label = "📥 Baixar dados do Brasil"
-        descricao = "Todos os estados do Brasil"
+        # Nível Brasil - dados de TODOS os municípios
+        df = exportador_service.gerar_dados_todos_municipios()
+        nome_arquivo = "dados_todos_municipios_brasil"
+        label = "📥 Baixar dados de TODOS os municípios do Brasil"
+        descricao = f"Todos os municípios do Brasil ({len(df)} registros)"
     
     # Verificar se há dados
     if df.empty:
         st.info("ℹ️ Nenhum dado disponível para exportação.")
         return
     
-    # Criar colunas para os botões
-    col1, col2, col3 = st.columns([1, 1, 2])
-    
-    with col1:
-        # Botão CSV
-        csv_data = exportador_service.exportar_para_csv(df)
-        st.download_button(
-            label="📄 CSV",
-            data=csv_data,
-            file_name=f"{nome_arquivo}.csv",
-            mime="text/csv",
-            use_container_width=True,
-            key=f"csv_{nome_arquivo}"
-        )
-    
-    with col2:
-        # Botão Excel (com fallback)
-        try:
-            excel_data = exportador_service.exportar_para_excel(df)
+    # Criar container para os botões
+    with st.container():
+        st.markdown("#### 📊 Exportar dados")
+        
+        # Criar colunas para os botões
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            # Botão CSV
+            csv_data = exportador_service.exportar_para_csv(df)
             st.download_button(
-                label="📊 Excel",
-                data=excel_data,
-                file_name=f"{nome_arquivo}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                label="📄 Baixar CSV",
+                data=csv_data,
+                file_name=f"{nome_arquivo}.csv",
+                mime="text/csv",
                 use_container_width=True,
-                key=f"excel_{nome_arquivo}"
+                key=f"csv_{nome_arquivo}"
             )
-        except Exception as e:
-            # Se falhar, mostrar mensagem e oferecer apenas CSV
-            st.warning("⚠️ Exportação para Excel indisponível. Use o formato CSV.")
-    
-    with col3:
-        # Informação de quantos registros
-        st.caption(f"📊 {len(df)} registros | {descricao}")
+        
+        with col2:
+            # Botão Excel (com fallback)
+            try:
+                from openpyxl.workbook import Workbook
+                excel_data = exportador_service.exportar_para_excel(df)
+                st.download_button(
+                    label="📊 Baixar Excel",
+                    data=excel_data,
+                    file_name=f"{nome_arquivo}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key=f"excel_{nome_arquivo}"
+                )
+            except ImportError:
+                st.warning("⚠️ Biblioteca 'openpyxl' não encontrada. Use o formato CSV.")
+            except Exception as e:
+                st.warning(f"⚠️ Exportação para Excel indisponível. Use o formato CSV.")
+        
+        with col3:
+            # Informação de quantos registros
+            st.caption(f"📊 {descricao}")
+            
+            # Prévia dos dados
+            with st.expander("👁️ Ver prévia dos dados"):
+                st.dataframe(
+                    df.head(10),
+                    use_container_width=True,
+                    hide_index=True
+                )
+                st.caption(f"Mostrando 10 de {len(df)} registros")
