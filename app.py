@@ -143,7 +143,7 @@ CSS = """
 
 html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; color: var(--ink); }
 .stApp { background: var(--bg); }
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
 .block-container { padding-top: 1.5rem; padding-bottom: 3rem; max-width: 1180px; }
 
 section[data-testid="stSidebar"] {
@@ -216,6 +216,10 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     border-radius: 14px;
     padding: 1.3rem 1.4rem;
     animation: fadeUp .6s ease-out;
+    min-height: 148px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 .card-label {
     font-size: 0.72rem;
@@ -223,25 +227,30 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     letter-spacing: .06em;
     color: var(--muted);
     font-weight: 600;
+    line-height: 1.3;
 }
 .card-value {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.7rem;
+    font-size: 1.4rem;
     font-weight: 600;
     color: var(--primary-dark);
     margin-top: .3rem;
+    line-height: 1.25;
+    white-space: normal;
 }
 .card-unit {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--muted);
     margin-left: .3rem;
     font-family: 'IBM Plex Sans', sans-serif;
+    white-space: nowrap;
 }
 .card-foot {
     font-size: 0.78rem;
     color: var(--gold);
-    margin-top: .4rem;
+    margin-top: .5rem;
     font-weight: 500;
+    line-height: 1.3;
 }
 
 /* ---------- Section headers ---------- */
@@ -459,7 +468,6 @@ st.markdown(
 # ---------------------------------------------------------------------------
 # Cards de indicadores
 # ---------------------------------------------------------------------------
-st.markdown('<div class="card-grid">', unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     card("População estimada", fmt_int(populacao), "hab.", "Estimativas IBGE")
@@ -469,7 +477,6 @@ with col3:
     card("Densidade demográfica", fmt_dec(densidade, 1), "hab/km²", "Censo 2022")
 with col4:
     card(card4_label, card4_value, card4_unit, card4_foot)
-st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Gráfico de ranking
@@ -492,6 +499,7 @@ if top:
             marker_color=cores,
             text=[fmt_int(v) for v in valores_chart],
             textposition="outside",
+            textfont=dict(color="#000000"),
         )
     )
     fig.update_layout(
@@ -499,9 +507,9 @@ if top:
         margin=dict(l=10, r=10, t=10, b=10),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="IBM Plex Sans", color="#12241F"),
-        xaxis=dict(showgrid=True, gridcolor="#D8E0D9", title="Habitantes"),
-        yaxis=dict(title=""),
+        font=dict(family="IBM Plex Sans", color="#000000"),
+        xaxis=dict(showgrid=True, gridcolor="#D8E0D9", title="Habitantes", tickfont=dict(color="#000000"), title_font=dict(color="#000000")),
+        yaxis=dict(title="", tickfont=dict(color="#000000")),
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
