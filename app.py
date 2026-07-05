@@ -42,6 +42,10 @@ def main():
     codigo = selecoes["codigo"]
     modo_offline = selecoes.get("modo_offline", False)
     
+    # Obter nomes para o mapa
+    nome_municipio = selecoes["municipio"].nome if selecoes["municipio"] else None
+    nome_estado = selecoes["estado"].nome if selecoes["estado"] else None
+    
     # Buscar indicadores
     with st.spinner("📊 Carregando dados do IBGE..."):
         indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
@@ -160,7 +164,9 @@ def main():
 
         dados_mapa = mapas_service.preparar_dados_mapa(
             ranking_mapa,
-            estados_para_mapa
+            estados_para_mapa,
+            municipio_selecionado=nome_municipio,
+            estado_selecionado=nome_estado
         )
     
     # Renderizar hero
@@ -187,7 +193,6 @@ def main():
     
     if esta_na_visao_municipio_estado:
         # Para municípios e estados, mostra a tabela com 3 colunas
-        # Mostra todos os municípios, não apenas o top 10
         render_ranking_table(
             ranking=ranking,
             title=chart_title,
@@ -204,13 +209,19 @@ def main():
             max_items=max_items_ranking
         )
     
-    # Renderizar mapa
+    # Renderizar mapa com destaque para município/estado selecionado
     if selecoes["regiao"]:
         titulo_mapa = f"🗺️ Mapa: população por estado - Região {selecoes['regiao'].nome}"
     else:
         titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
     
-    render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
+    render_population_map(
+        dados_mapa, 
+        ranking_mapa, 
+        titulo_mapa,
+        municipio_selecionado=nome_municipio,
+        estado_selecionado=nome_estado
+    )
     
     # Rodapé
     st.caption(UI_TEXTS["source"])
