@@ -42,19 +42,45 @@ def main():
     codigo = selecoes["codigo"]
     modo_offline = selecoes.get("modo_offline", False)
     
-    # Buscar indicadores (sem spinner para transição instantânea)
-    indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
-    
-    # Determinar contexto para o quarto card e ranking
-    if selecoes["municipio"]:
-        # Nível município
-        estados = localidades_service.get_estados()
-        estado_obj = next(
-            (e for e in estados if e.id == selecoes["estado"].id), 
-            None
-        )
-        if estado_obj:
-            municipios = localidades_service.get_municipios(estado_obj.id)
+    # Buscar indicadores — com spinner visível.
+    # Antes não havia spinner (para dar sensação de transição instantânea),
+    # mas isso fazia a tela parecer travada/quebrada durante uma consulta
+    # mais lenta à API do IBGE. Como os dados ficam em cache por 6h, o
+    # spinner só aparece de fato na primeira consulta de cada contexto.
+    with st.spinner("📊 Carregando dados do IBGE..."):
+        indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
+        
+        # Determinar contexto para o quarto card e ranking
+        if selecoes["municipio"]:
+            # Nível município
+            estados = localidades_service.get_estados()
+            estado_obj = next(
+                (e for e in estados if e.id == selecoes["estado"].id), 
+                None
+            )
+            if estado_obj:
+                municipios = localidades_service.get_municipios(estado_obj.id)
+                peer_codigos = [m.id for m in municipios]
+                peer_nomes = [m.nome for m in municipios]
+                ranking = agregados_service.get_ranking_populacao(
+                    NiveisTerritoriais.MUNICIPIO,
+                    peer_codigos,
+                    peer_nomes
+                )
+                posicao = next(
+                    (i + 1 for i, r in enumerate(ranking) if r.nome == selecoes["municipio"].nome),
+                    None
+                )
+                card4_label = "Posição no estado"
+                card4_value = f"{posicao}º" if posicao else "—"
+                card4_unit = ""
+                card4_foot = f"de {len(ranking)} municípios"
+                chart_title = f"Ranking de população — municípios de {selecoes['estado'].sigla}"
+                highlight_nome = selecoes["municipio"].nome
+        
+        elif selecoes["estado"]:
+            # Nível estado
+            municipios = localidades_service.get_municipios(selecoes["estado"].id)
             peer_codigos = [m.id for m in municipios]
             peer_nomes = [m.nome for m in municipios]
             ranking = agregados_service.get_ranking_populacao(
@@ -62,70 +88,84 @@ def main():
                 peer_codigos,
                 peer_nomes
             )
-            posicao = next(
-                (i + 1 for i, r in enumerate(ranking) if r.nome == selecoes["municipio"].nome),
-                None
-            )
-            card4_label = "Posição no estado"
-            card4_value = f"{posicao}º" if posicao else "—"
+            card4_label = "Municípios"
+            card4_value = fmt_int(len(municipios))
             card4_unit = ""
-            card4_foot = f"de {len(ranking)} municípios"
-            chart_title = f"Ranking de população — municípios de {selecoes['estado'].sigla}"
-            highlight_nome = selecoes["municipio"].nome
+            card4_foot = "no estado"
+            chart_title = f"Top municípios de {selecoes['estado'].nome} por população"
+            highlight_nome = None
+        
+        elif selecoes["regiao"]:
+            # Nível região
+            estados = localidades_service.get_estados(selecoes["regiao"].id)
+            peer_codigos = [e.id for e in estados]
+            peer_nomes = [e.nome for e in estados]
+            ranking = agregados_service.get_ranking_populacao(
+                NiveisTerritoriais.ESTADO,
+                peer_codigos,
+                peer_nomes
+            )
+            total_municipios = sum(
+                len(localidades_service.get_municipios(e.id)) for e in estados
+            )
+            card4_label = "Municípios"
+            card4_value = fmt_int(total_municipios)
+            card4_unit = ""
+            card4_foot = f"em {len(estados)} estados"
+            chart_title = f"Estados da região {selecoes['regiao'].nome} por população"
+            highlight_nome = None
+        
+        else:
+            # Nível Brasil (seleção padrão) — TODOS os 26 estados + DF
+            todos_estados = localidades_service.get_estados()
+            peer_codigos = [e.id for e in todos_estados]
+            peer_nomes = [e.nome for e in todos_estados]
+            ranking = agregados_service.get_ranking_populacao(
+                NiveisTerritoriais.ESTADO,
+                peer_codigos,
+                peer_nomes
+            )
+            card4_label = "Estados"
+            card4_value = "27"
+            card4_unit = ""
+            card4_foot = "+ Distrito Federal"
+            chart_title = "Estados do Brasil por população"
+            highlight_nome = None
     
-    elif selecoes["estado"]:
-        # Nível estado
-        municipios = localidades_service.get_municipios(selecoes["estado"].id)
-        peer_codigos = [m.id for m in municipios]
-        peer_nomes = [m.nome for m in municipios]
-        ranking = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.MUNICIPIO,
-            peer_codigos,
-            peer_nomes
-        )
-        card4_label = "Municípios"
-        card4_value = fmt_int(len(municipios))
-        card4_unit = ""
-        card4_foot = "no estado"
-        chart_title = f"Top municípios de {selecoes['estado'].nome} por população"
-        highlight_nome = None
-    
-    elif selecoes["regiao"]:
-        # Nível região
-        estados = localidades_service.get_estados(selecoes["regiao"].id)
-        peer_codigos = [e.id for e in estados]
-        peer_nomes = [e.nome for e in estados]
-        ranking = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.ESTADO,
-            peer_codigos,
-            peer_nomes
-        )
-        total_municipios = sum(
-            len(localidades_service.get_municipios(e.id)) for e in estados
-        )
-        card4_label = "Municípios"
-        card4_value = fmt_int(total_municipios)
-        card4_unit = ""
-        card4_foot = f"em {len(estados)} estados"
-        chart_title = f"Estados da região {selecoes['regiao'].nome} por população"
-        highlight_nome = None
-    
-    else:
-        # Nível Brasil (seleção padrão)
+        # Dados do mapa (sempre em nível de estado, filtrado por região se houver).
+        # Reaproveita o `ranking` já calculado acima quando ele já é por
+        # estado (visão Brasil ou Região), evitando buscar os mesmos dados
+        # da API duas vezes.
         todos_estados = localidades_service.get_estados()
-        peer_codigos = [e.id for e in todos_estados]
-        peer_nomes = [e.nome for e in todos_estados]
-        ranking = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.ESTADO,
-            peer_codigos,
-            peer_nomes
+
+        if selecoes["regiao"]:
+            estados_filtrados = localidades_service.get_estados(selecoes["regiao"].id)
+            estados_para_mapa = [
+                {"nome": e.nome, "sigla": e.sigla} for e in estados_filtrados
+            ]
+            ranking_mapa = ranking  # já é o ranking de estados desta região
+        elif selecoes["estado"] or selecoes["municipio"]:
+            # Nestes níveis, `ranking` é de municípios — o mapa precisa do
+            # ranking de TODOS os estados do Brasil, então buscamos à parte.
+            estados_para_mapa = [
+                {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
+            ]
+            ranking_mapa = agregados_service.get_ranking_populacao(
+                NiveisTerritoriais.ESTADO,
+                [e.id for e in todos_estados],
+                [e.nome for e in todos_estados]
+            )
+        else:
+            # Visão Brasil: `ranking` já é exatamente isso
+            estados_para_mapa = [
+                {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
+            ]
+            ranking_mapa = ranking
+
+        dados_mapa = mapas_service.preparar_dados_mapa(
+            ranking_mapa,
+            estados_para_mapa
         )
-        card4_label = "Estados"
-        card4_value = "27"
-        card4_unit = ""
-        card4_foot = "+ Distrito Federal"
-        chart_title = "Estados do Brasil por população"
-        highlight_nome = None
     
     # Renderizar hero
     render_hero_section(
@@ -134,7 +174,7 @@ def main():
         nome_local=selecoes["nome_local"]
     )
     
-    # Renderizar cards
+    # Renderizar cards (agora com suporte a Renda Per Capita e PIB)
     render_indicators_cards(
         indicadores=indicadores,
         card4_label=card4_label,
@@ -142,44 +182,17 @@ def main():
         card4_unit=card4_unit,
         card4_foot=card4_foot
     )
+    
     # Renderizar gráfico de ranking
-    st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
-    render_ranking_chart(ranking, chart_title, highlight_nome)
-    
-    # Renderizar mapa - FILTRADO POR REGIÃO
-    # Preparar dados para o mapa baseado na seleção
-    todos_estados = localidades_service.get_estados()
-    
-    # Filtrar estados pela região selecionada
-    if selecoes["regiao"]:
-        # Se uma região está selecionada, mostrar apenas os estados dela
-        estados_filtrados = localidades_service.get_estados(selecoes["regiao"].id)
-        estados_para_mapa = [
-            {"nome": e.nome, "sigla": e.sigla} for e in estados_filtrados
-        ]
-        codigos_para_mapa = [e.id for e in estados_filtrados]
-        nomes_para_mapa = [e.nome for e in estados_filtrados]
-        
-        ranking_mapa = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.ESTADO,
-            codigos_para_mapa,
-            nomes_para_mapa
-        )
-    else:
-        # Sem região selecionada, mostrar todos os estados
-        estados_para_mapa = [
-            {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
-        ]
-        ranking_mapa = agregados_service.get_ranking_populacao(
-            NiveisTerritoriais.ESTADO,
-            [e.id for e in todos_estados],
-            [e.nome for e in todos_estados]
-        )
-    
-    dados_mapa = mapas_service.preparar_dados_mapa(
-        ranking_mapa,
-        estados_para_mapa
+    # Na visão Brasil (nenhum filtro selecionado), mostramos TODOS os estados
+    # (27 + DF) em vez de cortar no top 10 padrão.
+    esta_na_visao_brasil = not (
+        selecoes["regiao"] or selecoes["estado"] or selecoes["municipio"]
     )
+    max_items_ranking = len(ranking) if esta_na_visao_brasil else None
+
+    st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
+    render_ranking_chart(ranking, chart_title, highlight_nome, max_items=max_items_ranking)
     
     # Título do mapa dinâmico
     if selecoes["regiao"]:
