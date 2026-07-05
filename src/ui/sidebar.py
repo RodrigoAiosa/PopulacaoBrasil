@@ -5,6 +5,7 @@ import streamlit as st
 from typing import Tuple, Optional, Dict, Any
 
 from src.services.localidades import localidades_service
+from src.services.exportador import exportador_service
 from src.models.schemas import Regiao, Estado, Municipio
 from src.utils.constants import FILTER_OPTIONS
 
@@ -136,7 +137,6 @@ class SidebarFilters:
         # ============================================================
         
         # ==================== LINKEDIN RODAPÉ ====================
-        st.sidebar.markdown("---")
         self._render_linkedin_footer()
         # ============================================================
         
@@ -160,90 +160,197 @@ class SidebarFilters:
     
     def _render_export_button(self):
         """
-        Renderiza o botão de exportação na sidebar
+        Renderiza o botão de exportação na sidebar.
+
+        IMPORTANTE (performance): a geração do CSV só acontece quando o
+        usuário clica explicitamente em "Gerar CSV". Antes, o DataFrame era
+        recalculado automaticamente a cada carregamento/rerun da página —
+        inclusive a versão "todos os municípios do Brasil" (5.500+ linhas) —
+        o que travava a tela principal antes mesmo dela aparecer. Agora nada
+        disso roda até o usuário pedir.
         """
-        from src.services.exportador import exportador_service
-        
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
         
-        # Determinar o tipo de dados a exportar
         nivel = self._determinar_nivel()
         
-        # Buscar os dados com base na seleção
-        df = None
-        nome_arquivo = "dados"
-        label = "📥 Baixar CSV"
-        
-        try:
-            if nivel == "N6" and self.estado_selecionado:
-                # Nível município - dados dos municípios do estado
-                df = exportador_service.gerar_dados_municipios_estado(self.estado_selecionado.id)
-                nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
-                label = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
-            
-            elif nivel == "N3" and self.estado_selecionado:
-                # Nível estado - dados do estado
-                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id if self.regiao_selecionada else None)
-                nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
-                label = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
-            
-            elif nivel == "N2" and self.regiao_selecionada:
-                # Nível região - dados dos estados da região
-                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id)
-                nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
-                label = f"📥 CSV - Região {self.regiao_selecionada.nome}"
-            
-            else:
-                # Nível Brasil - dados de TODOS os municípios
-                df = exportador_service.gerar_dados_todos_municipios()
-                nome_arquivo = "dados_todos_municipios_brasil"
-                label = "📥 CSV - Todos os municípios"
-            
-            # Verificar se há dados
-            if df is None or df.empty:
-                st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
+        # Apenas define QUAL função vai gerar os dados e a chave de cache —
+        # nada é executado ainda nesta etapa.
+        if nivel == "N6" and self.estado_selecionado:
+            cache_key = f"municipios_{self.estado_selecionado.id}"
+            nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Municípios de {self.estado_selecionado.sigla}"
+            label_baixar = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
+            estado_id = self.estado_selecionado.id
+            gerar_fn = lambda: exportador_service.gerar_dados_municipios_estado(estado_id)
+
+        elif nivel == "N3" and self.estado_selecionado:
+            cache_key = f"estado_{self.estado_selecionado.id}"
+            nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Estado {self.estado_selecionado.sigla}"
+            label_baixar = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
+            regiao_id = self.regiao_selecionada.id if self.regiao_selecionada else None
+            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
+
+        elif nivel == "N2" and self.regiao_selecionada:
+            cache_key = f"regiao_{self.regiao_selecionada.id}"
+            nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Região {self.regiao_selecionada.nome}"
+            label_baixar = f"📥 CSV - Região {self.regiao_selecionada.nome}"
+            regiao_id = self.regiao_selecionada.id
+            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
+
+        else:
+            cache_key = "brasil_todos_municipios"
+            nome_arquivo = "dados_todos_municipios_brasil"
+            label_gerar = "📊 Gerar CSV — Todos os municípios do Brasil"
+            label_baixar = "📥 CSV - Todos os municípios"
+            gerar_fn = lambda: exportador_service.gerar_dados_todos_municipios()
+
+        session_key = f"export_df_{cache_key}"
+
+        # Se ainda não geramos os dados deste contexto nesta sessão,
+        # mostramos apenas um botão para o usuário pedir a geração.
+        if session_key not in st.session_state:
+            gerar_clicado = st.sidebar.button(
+                label_gerar, use_container_width=True, key=f"gerar_{cache_key}"
+            )
+            if not gerar_clicado:
+                st.sidebar.caption("Clique para gerar o arquivo (pode levar alguns segundos).")
                 return
-            
-            # Botão de download
-            csv_data = exportador_service.exportar_para_csv(df)
-            
-            with st.sidebar.container():
-                st.download_button(
-                    label=label,
-                    data=csv_data,
-                    file_name=f"{nome_arquivo}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    key=f"sidebar_export_{nome_arquivo}"
-                )
-                st.caption(f"📊 {len(df):,} registros")
-                
-        except Exception as e:
-            st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
+
+            with st.sidebar:
+                with st.spinner("Gerando arquivo..."):
+                    try:
+                        st.session_state[session_key] = gerar_fn()
+                    except Exception as e:
+                        st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
+                        return
+
+        df = st.session_state.get(session_key)
+
+        if df is None or df.empty:
+            st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
+            return
+
+        csv_data = exportador_service.exportar_para_csv(df)
+
+        with st.sidebar.container():
+            st.download_button(
+                label=label_baixar,
+                data=csv_data,
+                file_name=f"{nome_arquivo}.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key=f"sidebar_export_{cache_key}"
+            )
+            st.caption(f"📊 {len(df):,} registros")
     
     def _render_linkedin_footer(self):
         """
-        Renderiza o rodapé com logo do LinkedIn
+        Renderiza o rodapé com logo do LinkedIn centralizado
         """
         linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
         
+        # SVG do LinkedIn em formato inline (ícone oficial)
+        linkedin_svg = '''
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+        </svg>
+        '''
+        
         st.sidebar.markdown(
             f"""
-            <div style="text-align: center; padding: 10px 0 5px 0;">
-                <a href="{linkedin_url}" target="_blank" style="
-                    color: #EAF2EE; 
-                    text-decoration: none; 
-                    font-size: 14px; 
-                    opacity: 0.8;
-                    transition: opacity 0.3s;
-                    display: inline-block;
-                ">
-                    <div style="font-size: 24px; margin-bottom: 4px;">🔗</div>
-                    <div style="font-size: 12px; letter-spacing: 0.5px;">Rodrigo Aiôsa</div>
-                    <div style="font-size: 10px; opacity: 0.6;">linkedin.com/in/rodrigoaiosa</div>
+            <div class="sidebar-linkedin-container">
+                <a href="{linkedin_url}" target="_blank" class="sidebar-linkedin-link">
+                    <div class="sidebar-linkedin-icon-wrapper">
+                        {linkedin_svg}
+                    </div>
+                    <div class="sidebar-linkedin-name">Rodrigo Aiôsa</div>
+                    <div class="sidebar-linkedin-handle">linkedin.com/in/rodrigoaiosa</div>
                 </a>
             </div>
+            <style>
+                /* Container do LinkedIn */
+                .sidebar-linkedin-container {{
+                    text-align: center;
+                    padding: 16px 0 8px 0;
+                    margin-top: 8px;
+                    border-top: 1px solid rgba(255, 255, 255, 0.08);
+                }}
+                
+                /* Link principal */
+                .sidebar-linkedin-link {{
+                    text-decoration: none;
+                    display: inline-block;
+                    transition: all 0.3s ease;
+                    opacity: 0.7;
+                    cursor: pointer;
+                }}
+                
+                .sidebar-linkedin-link:hover {{
+                    opacity: 1 !important;
+                }}
+                
+                /* Ícone do LinkedIn */
+                .sidebar-linkedin-icon-wrapper {{
+                    width: 52px;
+                    height: 52px;
+                    margin: 0 auto 8px auto;
+                    background: #0A66C2;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    color: white;
+                }}
+                
+                .sidebar-linkedin-link:hover .sidebar-linkedin-icon-wrapper {{
+                    transform: scale(1.12);
+                    box-shadow: 0 6px 24px rgba(10, 102, 194, 0.5);
+                }}
+                
+                .sidebar-linkedin-icon-wrapper svg {{
+                    width: 28px;
+                    height: 28px;
+                    fill: white;
+                }}
+                
+                /* Nome */
+                .sidebar-linkedin-name {{
+                    color: #EAF2EE;
+                    font-size: 14px;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    transition: all 0.3s ease;
+                }}
+                
+                .sidebar-linkedin-link:hover .sidebar-linkedin-name {{
+                    color: #FFFFFF;
+                }}
+                
+                /* Handle do LinkedIn */
+                .sidebar-linkedin-handle {{
+                    color: #EAF2EE;
+                    font-size: 11px;
+                    opacity: 0.5;
+                    margin-top: 3px;
+                    transition: all 0.3s ease;
+                    letter-spacing: 0.2px;
+                }}
+                
+                .sidebar-linkedin-link:hover .sidebar-linkedin-handle {{
+                    opacity: 0.8;
+                }}
+                
+                /* Animações */
+                @keyframes pulse-glow {{
+                    0% {{ box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.3); }}
+                    70% {{ box-shadow: 0 0 0 12px rgba(10, 102, 194, 0); }}
+                    100% {{ box-shadow: 0 0 0 0 rgba(10, 102, 194, 0); }}
+                }}
+            </style>
             """,
             unsafe_allow_html=True
         )
