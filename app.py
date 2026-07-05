@@ -43,10 +43,6 @@ def main():
     modo_offline = selecoes.get("modo_offline", False)
     
     # Buscar indicadores — com spinner visível.
-    # Antes não havia spinner (para dar sensação de transição instantânea),
-    # mas isso fazia a tela parecer travada/quebrada durante uma consulta
-    # mais lenta à API do IBGE. Como os dados ficam em cache por 6h, o
-    # spinner só aparece de fato na primeira consulta de cada contexto.
     with st.spinner("📊 Carregando dados do IBGE..."):
         indicadores = agregados_service.get_indicadores_demograficos(nivel, codigo)
         
@@ -133,9 +129,6 @@ def main():
             highlight_nome = None
     
         # Dados do mapa (sempre em nível de estado, filtrado por região se houver).
-        # Reaproveita o `ranking` já calculado acima quando ele já é por
-        # estado (visão Brasil ou Região), evitando buscar os mesmos dados
-        # da API duas vezes.
         todos_estados = localidades_service.get_estados()
 
         if selecoes["regiao"]:
@@ -143,10 +136,8 @@ def main():
             estados_para_mapa = [
                 {"nome": e.nome, "sigla": e.sigla} for e in estados_filtrados
             ]
-            ranking_mapa = ranking  # já é o ranking de estados desta região
+            ranking_mapa = ranking
         elif selecoes["estado"] or selecoes["municipio"]:
-            # Nestes níveis, `ranking` é de municípios — o mapa precisa do
-            # ranking de TODOS os estados do Brasil, então buscamos à parte.
             estados_para_mapa = [
                 {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
             ]
@@ -156,7 +147,6 @@ def main():
                 [e.nome for e in todos_estados]
             )
         else:
-            # Visão Brasil: `ranking` já é exatamente isso
             estados_para_mapa = [
                 {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
             ]
@@ -184,8 +174,6 @@ def main():
     )
     
     # Renderizar gráfico de ranking
-    # Na visão Brasil (nenhum filtro selecionado), mostramos TODOS os estados
-    # (27 + DF) em vez de cortar no top 10 padrão.
     esta_na_visao_brasil = not (
         selecoes["regiao"] or selecoes["estado"] or selecoes["municipio"]
     )
@@ -196,19 +184,4 @@ def main():
     
     # Título do mapa dinâmico
     if selecoes["regiao"]:
-        titulo_mapa = f"🗺️ Mapa: população por estado - Região {selecoes['regiao'].nome}"
-    else:
-        titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
-    
-    render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
-    
-    # Rodapé
-    st.caption(UI_TEXTS["source"])
-    
-    # Mostrar status do modo offline
-    if modo_offline:
-        st.info("📡 **Modo Offline Ativo** - Dados limitados disponíveis.")
-
-
-if __name__ == "__main__":
-    main()
+        titulo_mapa = f"🗺️ M
