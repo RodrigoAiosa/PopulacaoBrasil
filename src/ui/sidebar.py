@@ -20,11 +20,36 @@ class SidebarFilters:
         self.estados = []
         self.municipios = []
         
-        self.regiao_selecionada: Optional[Regiao] = None
-        self.estado_selecionado: Optional[Estado] = None
-        self.municipio_selecionado: Optional[Municipio] = None
-        
         self._connection_error = False
+
+    # As seleções de filtro ficam em st.session_state (por sessão/usuário) e não
+    # em atributos de instância — `sidebar_filters` é um único objeto global
+    # compartilhado por todas as sessões do app, então guardar a seleção em
+    # `self.x` fazia a seleção de um usuário vazar para outro usuário acessando
+    # o app ao mesmo tempo.
+    @property
+    def regiao_selecionada(self) -> Optional[Regiao]:
+        return st.session_state.get("sf_regiao_selecionada")
+
+    @regiao_selecionada.setter
+    def regiao_selecionada(self, value: Optional[Regiao]):
+        st.session_state["sf_regiao_selecionada"] = value
+
+    @property
+    def estado_selecionado(self) -> Optional[Estado]:
+        return st.session_state.get("sf_estado_selecionado")
+
+    @estado_selecionado.setter
+    def estado_selecionado(self, value: Optional[Estado]):
+        st.session_state["sf_estado_selecionado"] = value
+
+    @property
+    def municipio_selecionado(self) -> Optional[Municipio]:
+        return st.session_state.get("sf_municipio_selecionado")
+
+    @municipio_selecionado.setter
+    def municipio_selecionado(self, value: Optional[Municipio]):
+        st.session_state["sf_municipio_selecionado"] = value
     
     def render(self) -> Dict[str, Any]:
         """
