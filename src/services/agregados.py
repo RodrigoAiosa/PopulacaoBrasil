@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional, Dict, Any
 import streamlit as st
 import requests
 
-from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais, SIDRA_INVALID_SYMBOLS, PIB_PERIODOS
+from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais, SIDRA_INVALID_SYMBOLS
 from src.models.schemas import IndicadorDemografico, RankingItem
 from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
 
@@ -38,6 +38,9 @@ def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, p
 def _fetch_valores_agregado_lote(agregado_id: int, variavel_id: int, localidade_query: str, periodo: str = "-1") -> Optional[Any]:
     """
     Função cacheada para buscar valores de VÁRIAS localidades em UMA ÚNICA requisição.
+    localidade_query aceita a sintaxe nativa da API do IBGE, ex:
+    "N3[all]" (todos os estados), "N6[N3[35]]" (municípios de SP),
+    "N3[11,12,13]" (estados específicos).
     """
     try:
         url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
