@@ -1,8 +1,8 @@
 """
-Sidebar com filtros em cascata e busca dinâmica
+Sidebar com filtros em cascata
 """
 import streamlit as st
-from typing import Tuple, Optional, Dict, Any, List
+from typing import Tuple, Optional, Dict, Any
 
 from src.services.localidades import localidades_service
 from src.services.exportador import exportador_service
@@ -12,7 +12,7 @@ from src.utils.constants import FILTER_OPTIONS
 
 class SidebarFilters:
     """
-    Gerenciador dos filtros da sidebar com busca dinâmica
+    Gerenciador dos filtros da sidebar
     """
     
     def __init__(self):
@@ -25,16 +25,13 @@ class SidebarFilters:
         self.municipio_selecionado: Optional[Municipio] = None
         
         self._connection_error = False
-        
-        # Cache para busca
-        self._search_cache = {}
     
     def render(self) -> Dict[str, Any]:
         """
         Renderiza a sidebar com filtros e retorna seleções
         """
         st.sidebar.markdown("## 🗺️ Filtros")
-        st.sidebar.caption("Região, Estado e Município (cidade) em cascata. 🔍 Digite para buscar.")
+        st.sidebar.caption("Região, Estado e Município (cidade) em cascata.")
         
         # Carregar regiões
         try:
@@ -49,23 +46,96 @@ class SidebarFilters:
             self._connection_error = True
             st.sidebar.warning(f"⚠️ Erro ao conectar com a API: {str(e)[:100]}...")
         
-        # ==================== REGIÃO ====================
-        self._render_regiao_select()
+        # Seletor de região
+        regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
+        regiao_nome_sel = st.sidebar.selectbox(
+            "Região", 
+            regiao_nomes,
+            key="regiao_select"
+        )
         
-        # ==================== ESTADO ====================
-        self._render_estado_select()
+        nova_regiao = None
+        if regiao_nome_sel != FILTER_OPTIONS["todas_regioes"]:
+            nova_regiao = next(
+                r for r in self.regioes if r.nome == regiao_nome_sel
+            )
         
-        # ==================== MUNICÍPIO ====================
-        self._render_municipio_select()
+        if self.regiao_selecionada != nova_regiao:
+            self.regiao_selecionada = nova_regiao
+            self.estado_selecionado = None
+            self.municipio_selecionado = None
+            st.rerun()
         
-        # ==================== EXPORTAÇÃO ====================
+        # Seletor de estado
+        try:
+            self.estados = localidades_service.get_estados(
+                self.regiao_selecionada.id if self.regiao_selecionada else None
+            )
+        except Exception as e:
+            st.sidebar.warning(f"⚠️ Erro ao carregar estados: {str(e)[:100]}...")
+            self.estados = []
+        
+        estado_labels = [
+            f'{e.nome} ({e.sigla})' for e in self.estados
+        ]
+        
+        estado_label_sel = st.sidebar.selectbox(
+            "Estado",
+            [FILTER_OPTIONS["todos_estados"]] + estado_labels,
+            key="estado_select"
+        )
+        
+        novo_estado = None
+        if estado_label_sel != FILTER_OPTIONS["todos_estados"]:
+            idx = estado_labels.index(estado_label_sel)
+            novo_estado = self.estados[idx]
+        
+        if self.estado_selecionado != novo_estado:
+            self.estado_selecionado = novo_estado
+            self.municipio_selecionado = None
+            if novo_estado is not None:
+                st.rerun()
+        
+        # Seletor de município
+        if self.estado_selecionado:
+            try:
+                self.municipios = localidades_service.get_municipios(
+                    self.estado_selecionado.id
+                )
+            except Exception as e:
+                st.sidebar.warning(f"⚠️ Erro ao carregar municípios: {str(e)[:100]}...")
+                self.municipios = []
+            
+            municipio_nomes = [m.nome for m in self.municipios]
+            municipio_nome_sel = st.sidebar.selectbox(
+                "Cidade / Município",
+                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes,
+                key="municipio_select"
+            )
+            
+            if municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
+                self.municipio_selecionado = next(
+                    m for m in self.municipios if m.nome == municipio_nome_sel
+                )
+            else:
+                self.municipio_selecionado = None
+        else:
+            st.sidebar.selectbox(
+                "Cidade / Município",
+                ["Selecione um estado primeiro"],
+                disabled=True,
+                key="municipio_disabled"
+            )
+            self.municipio_selecionado = None
+        
+        # Botão de exportação
         st.sidebar.markdown("---")
         self._render_export_button()
         
-        # ==================== LINKEDIN ====================
+        # LinkedIn rodapé
         self._render_linkedin_footer()
         
-        # ==================== FONTE ====================
+        # Fonte dos dados
         st.sidebar.markdown("---")
         st.sidebar.caption(
             "Fonte: [API de Localidades e Agregados do IBGE]"
@@ -82,191 +152,6 @@ class SidebarFilters:
             "nome_local": self._get_nome_local(),
             "modo_offline": self._connection_error
         }
-    
-    def _render_regiao_select(self):
-        """Renderiza seletor de região com busca"""
-        regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
-        
-        # Campo de busca para região
-        search_regiao = st.sidebar.text_input(
-            "🔍 Buscar região",
-            placeholder="Digite o nome da região...",
-            key="search_regiao",
-            label_visibility="collapsed"
-        )
-        
-        # Filtrar regiões
-        if search_regiao:
-            search_lower = search_regiao.lower()
-            regiao_filtradas = [r for r in self.regioes if search_lower in r.nome.lower()]
-            regiao_nomes_filtrados = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in regiao_filtradas]
-        else:
-            regiao_nomes_filtrados = regiao_nomes
-        
-        # Seletor com opção de buscar
-        regiao_nome_sel = st.sidebar.selectbox(
-            "Região", 
-            regiao_nomes_filtrados,
-            key="regiao_select"
-        )
-        
-        # Determinar seleção
-        nova_regiao = None
-        if regiao_nome_sel and regiao_nome_sel != FILTER_OPTIONS["todas_regioes"]:
-            # Busca a região pelo nome (pode ser filtrada)
-            for r in self.regioes:
-                if r.nome == regiao_nome_sel:
-                    nova_regiao = r
-                    break
-        
-        # Se a região mudou, resetar estado e município
-        if self.regiao_selecionada != nova_regiao:
-            self.regiao_selecionada = nova_regiao
-            self.estado_selecionado = None
-            self.municipio_selecionado = None
-            # Limpa a busca de estado e município
-            if 'search_estado' in st.session_state:
-                st.session_state.search_estado = ""
-            if 'search_municipio' in st.session_state:
-                st.session_state.search_municipio = ""
-            st.rerun()
-    
-    def _render_estado_select(self):
-        """Renderiza seletor de estado com busca dinâmica"""
-        # Carregar estados baseado na região selecionada
-        try:
-            self.estados = localidades_service.get_estados(
-                self.regiao_selecionada.id if self.regiao_selecionada else None
-            )
-        except Exception as e:
-            st.sidebar.warning(f"⚠️ Erro ao carregar estados: {str(e)[:100]}...")
-            self.estados = []
-        
-        if not self.estados:
-            st.sidebar.selectbox(
-                "Estado",
-                ["Selecione uma região primeiro"],
-                disabled=True,
-                key="estado_disabled"
-            )
-            return
-        
-        # Campo de busca para estado
-        search_estado = st.sidebar.text_input(
-            "🔍 Buscar estado",
-            placeholder="Digite o nome do estado...",
-            key="search_estado",
-            label_visibility="collapsed"
-        )
-        
-        # Lista de estados com formatação
-        estado_labels = [f'{e.nome} ({e.sigla})' for e in self.estados]
-        
-        # Filtrar estados pela busca
-        if search_estado:
-            search_lower = search_estado.lower()
-            indices_filtrados = []
-            for i, e in enumerate(self.estados):
-                if search_lower in e.nome.lower() or search_lower in e.sigla.lower():
-                    indices_filtrados.append(i)
-            
-            estado_labels_filtrados = [estado_labels[i] for i in indices_filtrados]
-            estados_filtrados = [self.estados[i] for i in indices_filtrados]
-        else:
-            estado_labels_filtrados = [FILTER_OPTIONS["todos_estados"]] + estado_labels
-            estados_filtrados = self.estados
-        
-        # Seletor com busca
-        estado_label_sel = st.sidebar.selectbox(
-            "Estado",
-            estado_labels_filtrados,
-            key="estado_select"
-        )
-        
-        # Determinar seleção
-        novo_estado = None
-        if estado_label_sel and estado_label_sel != FILTER_OPTIONS["todos_estados"]:
-            # Busca o estado pelo label
-            for e in estados_filtrados:
-                label = f'{e.nome} ({e.sigla})'
-                if label == estado_label_sel:
-                    novo_estado = e
-                    break
-        
-        # Se o estado mudou, resetar município
-        if self.estado_selecionado != novo_estado:
-            self.estado_selecionado = novo_estado
-            self.municipio_selecionado = None
-            if 'search_municipio' in st.session_state:
-                st.session_state.search_municipio = ""
-            if novo_estado is not None:
-                st.rerun()
-    
-    def _render_municipio_select(self):
-        """Renderiza seletor de município com busca dinâmica"""
-        # Carregar municípios baseado no estado selecionado
-        if self.estado_selecionado:
-            try:
-                self.municipios = localidades_service.get_municipios(
-                    self.estado_selecionado.id
-                )
-            except Exception as e:
-                st.sidebar.warning(f"⚠️ Erro ao carregar municípios: {str(e)[:100]}...")
-                self.municipios = []
-        else:
-            self.municipios = []
-        
-        if not self.municipios:
-            st.sidebar.selectbox(
-                "Cidade / Município",
-                ["Selecione um estado primeiro"],
-                disabled=True,
-                key="municipio_disabled"
-            )
-            self.municipio_selecionado = None
-            return
-        
-        # Campo de busca para município
-        search_municipio = st.sidebar.text_input(
-            "🔍 Buscar cidade",
-            placeholder="Digite o nome da cidade...",
-            key="search_municipio",
-            label_visibility="collapsed"
-        )
-        
-        # Lista de municípios
-        municipio_nomes = [m.nome for m in self.municipios]
-        
-        # Filtrar municípios pela busca
-        if search_municipio:
-            search_lower = search_municipio.lower()
-            indices_filtrados = []
-            for i, m in enumerate(self.municipios):
-                if search_lower in m.nome.lower():
-                    indices_filtrados.append(i)
-            
-            municipio_nomes_filtrados = [municipio_nomes[i] for i in indices_filtrados]
-            municipios_filtrados = [self.municipios[i] for i in indices_filtrados]
-        else:
-            municipio_nomes_filtrados = [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes
-            municipios_filtrados = self.municipios
-        
-        # Seletor com busca
-        municipio_nome_sel = st.sidebar.selectbox(
-            "Cidade / Município",
-            municipio_nomes_filtrados,
-            key="municipio_select"
-        )
-        
-        # Determinar seleção
-        if municipio_nome_sel and municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
-            # Busca o município pelo nome
-            for m in municipios_filtrados:
-                if m.nome == municipio_nome_sel:
-                    self.municipio_selecionado = m
-                    break
-        else:
-            self.municipio_selecionado = None
     
     def _render_export_button(self):
         """Renderiza o botão de exportação na sidebar."""
