@@ -110,51 +110,6 @@ section[data-testid="stSidebar"] .stSelectbox[disabled] input {
 }
 
 /* ========================================
-   CAMPOS DE BUSCA NA SIDEBAR
-   ======================================== */
-section[data-testid="stSidebar"] .stTextInput {
-    margin-bottom: 0.2rem;
-}
-
-section[data-testid="stSidebar"] .stTextInput label {
-    display: none !important;
-}
-
-section[data-testid="stSidebar"] .stTextInput input {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 8px;
-    color: #EAF2EE !important;
-    padding: 0.35rem 0.8rem;
-    font-size: 0.8rem;
-    transition: all 0.3s ease;
-    width: 100%;
-}
-
-section[data-testid="stSidebar"] .stTextInput input::placeholder {
-    color: rgba(255,255,255,0.3);
-    font-size: 0.75rem;
-    font-weight: 300;
-}
-
-section[data-testid="stSidebar"] .stTextInput input:focus {
-    background: rgba(255,255,255,0.12);
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(201, 150, 46, 0.15);
-    outline: none;
-}
-
-section[data-testid="stSidebar"] .stTextInput input:hover {
-    background: rgba(255,255,255,0.09);
-    border-color: rgba(255,255,255,0.25);
-}
-
-/* Ícone de busca no campo */
-section[data-testid="stSidebar"] .stTextInput .stTextInputIcon {
-    color: rgba(255,255,255,0.3);
-}
-
-/* ========================================
    BOTÃO DE EXPORTAÇÃO NA SIDEBAR
    ======================================== */
 section[data-testid="stSidebar"] .stButton button {
@@ -513,12 +468,6 @@ div[data-testid="column"] {
     
     section[data-testid="stSidebar"] {
         padding: 0.5rem !important;
-    }
-    
-    /* Campos de busca em telas pequenas */
-    section[data-testid="stSidebar"] .stTextInput input {
-        font-size: 0.7rem;
-        padding: 0.3rem 0.6rem;
     }
 }
 
