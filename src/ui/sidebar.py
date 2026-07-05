@@ -24,8 +24,6 @@ class SidebarFilters:
         self.municipio_selecionado: Optional[Municipio] = None
         
         self._connection_error = False
-        self._ultima_regiao = None
-        self._ultimo_estado = None
     
     def render(self) -> Dict[str, Any]:
         """
@@ -49,20 +47,11 @@ class SidebarFilters:
         
         # Seletor de região - INICIANDO COM "TODAS AS REGIÕES"
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
-        
-        # Usar session_state para manter a seleção
-        if "regiao_selecionada_nome" not in st.session_state:
-            st.session_state.regiao_selecionada_nome = FILTER_OPTIONS["todas_regioes"]
-        
         regiao_nome_sel = st.sidebar.selectbox(
             "Região", 
             regiao_nomes,
-            index=regiao_nomes.index(st.session_state.regiao_selecionada_nome),
             key="regiao_select"
         )
-        
-        # Atualizar session_state
-        st.session_state.regiao_selecionada_nome = regiao_nome_sel
         
         # Verificar se a região mudou
         nova_regiao = None
@@ -76,11 +65,6 @@ class SidebarFilters:
             self.regiao_selecionada = nova_regiao
             self.estado_selecionado = None
             self.municipio_selecionado = None
-            # Limpar session_state de estado e município
-            if "estado_selecionado_nome" in st.session_state:
-                del st.session_state.estado_selecionado_nome
-            if "municipio_selecionado_nome" in st.session_state:
-                del st.session_state.municipio_selecionado_nome
             st.rerun()
         
         # Seletor de estado (atualizado com base na região)
@@ -96,25 +80,11 @@ class SidebarFilters:
             f'{e.nome} ({e.sigla})' for e in self.estados
         ]
         
-        # Manter o estado selecionado se ainda estiver na lista
-        estado_options = [FILTER_OPTIONS["todos_estados"]] + estado_labels
-        
-        # Usar session_state para manter o estado selecionado
-        if "estado_selecionado_nome" not in st.session_state:
-            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
-        
-        # Verificar se o estado atual ainda existe na lista
-        if st.session_state.estado_selecionado_nome not in estado_options:
-            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
-        
         estado_label_sel = st.sidebar.selectbox(
             "Estado",
-            estado_options,
-            index=estado_options.index(st.session_state.estado_selecionado_nome),
+            [FILTER_OPTIONS["todos_estados"]] + estado_labels,
             key="estado_select"
         )
-        
-        st.session_state.estado_selecionado_nome = estado_label_sel
         
         novo_estado = None
         if estado_label_sel != FILTER_OPTIONS["todos_estados"]:
@@ -125,8 +95,6 @@ class SidebarFilters:
         if self.estado_selecionado != novo_estado:
             self.estado_selecionado = novo_estado
             self.municipio_selecionado = None
-            if "municipio_selecionado_nome" in st.session_state:
-                del st.session_state.municipio_selecionado_nome
             if novo_estado is not None:
                 st.rerun()
         
@@ -141,24 +109,11 @@ class SidebarFilters:
                 self.municipios = []
             
             municipio_nomes = [m.nome for m in self.municipios]
-            municipio_options = [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes
-            
-            # Usar session_state para manter o município selecionado
-            if "municipio_selecionado_nome" not in st.session_state:
-                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
-            
-            # Verificar se o município atual ainda existe na lista
-            if st.session_state.municipio_selecionado_nome not in municipio_options:
-                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
-            
             municipio_nome_sel = st.sidebar.selectbox(
                 "Cidade / Município",
-                municipio_options,
-                index=municipio_options.index(st.session_state.municipio_selecionado_nome),
+                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes,
                 key="municipio_select"
             )
-            
-            st.session_state.municipio_selecionado_nome = municipio_nome_sel
             
             if municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
                 self.municipio_selecionado = next(
@@ -174,8 +129,6 @@ class SidebarFilters:
                 key="municipio_disabled"
             )
             self.municipio_selecionado = None
-            if "municipio_selecionado_nome" in st.session_state:
-                del st.session_state.municipio_selecionado_nome
         
         # ==================== BOTÃO DE EXPORTAÇÃO ====================
         st.sidebar.markdown("---")
@@ -210,7 +163,6 @@ class SidebarFilters:
         Renderiza o botão de exportação na sidebar
         """
         from src.services.exportador import exportador_service
-        from src.api.endpoints import NiveisTerritoriais
         
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
@@ -256,7 +208,6 @@ class SidebarFilters:
             # Botão de download
             csv_data = exportador_service.exportar_para_csv(df)
             
-            # Usar st.download_button com um container para garantir renderização
             with st.sidebar.container():
                 st.download_button(
                     label=label,
@@ -266,13 +217,10 @@ class SidebarFilters:
                     use_container_width=True,
                     key=f"sidebar_export_{nome_arquivo}"
                 )
-                
-                # Mostrar quantidade de registros
                 st.caption(f"📊 {len(df):,} registros")
                 
         except Exception as e:
             st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
-            st.sidebar.exception(e)
     
     def _render_linkedin_footer(self):
         """
@@ -280,7 +228,6 @@ class SidebarFilters:
         """
         linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
         
-        # Versão com texto simples e ícone
         st.sidebar.markdown(
             f"""
             <div style="text-align: center; padding: 10px 0 5px 0;">
@@ -310,7 +257,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return "N2"
         else:
-            return "N1"
+            return "N1"  # BRASIL (padrão)
     
     def _determinar_codigo(self) -> int:
         """Determina o código IBGE baseado nas seleções"""
@@ -321,7 +268,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.id
         else:
-            return 1  # Brasil
+            return 1  # Brasil (código 1)
     
     def _get_breadcrumb(self) -> str:
         """Monta o breadcrumb para display"""
@@ -334,7 +281,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return f"Região {self.regiao_selecionada.nome}"
         else:
-            return "Visão nacional"
+            return "Visão nacional"  # Padrão
     
     def _get_nome_local(self) -> str:
         """Retorna o nome da localidade selecionada"""
@@ -345,7 +292,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.nome
         else:
-            return "Brasil"
+            return "Brasil"  # Padrão
 
 
 # Instância global
