@@ -142,7 +142,6 @@ def main():
         card4_unit=card4_unit,
         card4_foot=card4_foot
     )
-    
     # Renderizar gráfico de ranking
     st.markdown(f'<div class="section-title">{chart_title}</div>', unsafe_allow_html=True)
     render_ranking_chart(ranking, chart_title, highlight_nome)
