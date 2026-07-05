@@ -28,3 +28,11 @@ MAP_HEIGHT = int(os.getenv("MAP_HEIGHT", 520))
 
 # Configurações de UI
 UI_MAX_ITEMS_RANKING = int(os.getenv("UI_MAX_ITEMS_RANKING", 10))
+
+# Caminho do CSV local (opcional) com IDHM por município.
+# Formato esperado: colunas codigo_ibge,idhm,ano
+# Veja src/services/idhm.py para detalhes de como obter/gerar esse arquivo.
+DATA_IDHM_MUNICIPIOS_PATH = os.getenv(
+    "DATA_IDHM_MUNICIPIOS_PATH",
+    str(BASE_DIR / "data" / "idhm_municipios.csv")
+)
