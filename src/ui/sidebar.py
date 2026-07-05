@@ -278,7 +278,7 @@ class SidebarFilters:
                         font-weight: 600;
                         letter-spacing: 0.3px;
                     ">
-                        Rodrigo Aiôsa
+                        Rodrigo Aiosa
                     </div>
                     <div style="
                         color: #EAF2EE;
