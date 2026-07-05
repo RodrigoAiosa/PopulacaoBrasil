@@ -5,7 +5,6 @@ import streamlit as st
 from typing import Tuple, Optional, Dict, Any
 
 from src.services.localidades import localidades_service
-from src.services.exportador import exportador_service
 from src.models.schemas import Regiao, Estado, Municipio
 from src.utils.constants import FILTER_OPTIONS
 
@@ -25,6 +24,8 @@ class SidebarFilters:
         self.municipio_selecionado: Optional[Municipio] = None
         
         self._connection_error = False
+        self._ultima_regiao = None
+        self._ultimo_estado = None
     
     def render(self) -> Dict[str, Any]:
         """
@@ -48,11 +49,20 @@ class SidebarFilters:
         
         # Seletor de região - INICIANDO COM "TODAS AS REGIÕES"
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
+        
+        # Usar session_state para manter a seleção
+        if "regiao_selecionada_nome" not in st.session_state:
+            st.session_state.regiao_selecionada_nome = FILTER_OPTIONS["todas_regioes"]
+        
         regiao_nome_sel = st.sidebar.selectbox(
             "Região", 
             regiao_nomes,
+            index=regiao_nomes.index(st.session_state.regiao_selecionada_nome),
             key="regiao_select"
         )
+        
+        # Atualizar session_state
+        st.session_state.regiao_selecionada_nome = regiao_nome_sel
         
         # Verificar se a região mudou
         nova_regiao = None
@@ -66,6 +76,11 @@ class SidebarFilters:
             self.regiao_selecionada = nova_regiao
             self.estado_selecionado = None
             self.municipio_selecionado = None
+            # Limpar session_state de estado e município
+            if "estado_selecionado_nome" in st.session_state:
+                del st.session_state.estado_selecionado_nome
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
             st.rerun()
         
         # Seletor de estado (atualizado com base na região)
@@ -81,11 +96,25 @@ class SidebarFilters:
             f'{e.nome} ({e.sigla})' for e in self.estados
         ]
         
+        # Manter o estado selecionado se ainda estiver na lista
+        estado_options = [FILTER_OPTIONS["todos_estados"]] + estado_labels
+        
+        # Usar session_state para manter o estado selecionado
+        if "estado_selecionado_nome" not in st.session_state:
+            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
+        
+        # Verificar se o estado atual ainda existe na lista
+        if st.session_state.estado_selecionado_nome not in estado_options:
+            st.session_state.estado_selecionado_nome = FILTER_OPTIONS["todos_estados"]
+        
         estado_label_sel = st.sidebar.selectbox(
             "Estado",
-            [FILTER_OPTIONS["todos_estados"]] + estado_labels,
+            estado_options,
+            index=estado_options.index(st.session_state.estado_selecionado_nome),
             key="estado_select"
         )
+        
+        st.session_state.estado_selecionado_nome = estado_label_sel
         
         novo_estado = None
         if estado_label_sel != FILTER_OPTIONS["todos_estados"]:
@@ -96,6 +125,8 @@ class SidebarFilters:
         if self.estado_selecionado != novo_estado:
             self.estado_selecionado = novo_estado
             self.municipio_selecionado = None
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
             if novo_estado is not None:
                 st.rerun()
         
@@ -110,11 +141,24 @@ class SidebarFilters:
                 self.municipios = []
             
             municipio_nomes = [m.nome for m in self.municipios]
+            municipio_options = [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes
+            
+            # Usar session_state para manter o município selecionado
+            if "municipio_selecionado_nome" not in st.session_state:
+                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
+            
+            # Verificar se o município atual ainda existe na lista
+            if st.session_state.municipio_selecionado_nome not in municipio_options:
+                st.session_state.municipio_selecionado_nome = FILTER_OPTIONS["todos_municipios"]
+            
             municipio_nome_sel = st.sidebar.selectbox(
                 "Cidade / Município",
-                [FILTER_OPTIONS["todos_municipios"]] + municipio_nomes,
+                municipio_options,
+                index=municipio_options.index(st.session_state.municipio_selecionado_nome),
                 key="municipio_select"
             )
+            
+            st.session_state.municipio_selecionado_nome = municipio_nome_sel
             
             if municipio_nome_sel != FILTER_OPTIONS["todos_municipios"]:
                 self.municipio_selecionado = next(
@@ -130,6 +174,8 @@ class SidebarFilters:
                 key="municipio_disabled"
             )
             self.municipio_selecionado = None
+            if "municipio_selecionado_nome" in st.session_state:
+                del st.session_state.municipio_selecionado_nome
         
         # ==================== BOTÃO DE EXPORTAÇÃO ====================
         st.sidebar.markdown("---")
@@ -161,91 +207,72 @@ class SidebarFilters:
     
     def _render_export_button(self):
         """
-        Renderiza o botão de exportação na sidebar.
-
-        IMPORTANTE (performance): a geração do CSV só acontece quando o
-        usuário clica explicitamente em "Gerar CSV". Antes, o DataFrame era
-        recalculado automaticamente a cada carregamento/rerun da página —
-        inclusive a versão "todos os municípios do Brasil" (5.500+ linhas) —
-        o que travava a tela principal antes mesmo dela aparecer. Agora nada
-        disso roda até o usuário pedir.
+        Renderiza o botão de exportação na sidebar
         """
+        from src.services.exportador import exportador_service
+        from src.api.endpoints import NiveisTerritoriais
+        
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
         
+        # Determinar o tipo de dados a exportar
         nivel = self._determinar_nivel()
         
-        # Apenas define QUAL função vai gerar os dados e a chave de cache —
-        # nada é executado ainda nesta etapa.
-        if nivel == "N6" and self.estado_selecionado:
-            cache_key = f"municipios_{self.estado_selecionado.id}"
-            nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
-            label_gerar = f"📊 Gerar CSV — Municípios de {self.estado_selecionado.sigla}"
-            label_baixar = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
-            estado_id = self.estado_selecionado.id
-            gerar_fn = lambda: exportador_service.gerar_dados_municipios_estado(estado_id)
-
-        elif nivel == "N3" and self.estado_selecionado:
-            cache_key = f"estado_{self.estado_selecionado.id}"
-            nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
-            label_gerar = f"📊 Gerar CSV — Estado {self.estado_selecionado.sigla}"
-            label_baixar = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
-            regiao_id = self.regiao_selecionada.id if self.regiao_selecionada else None
-            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
-
-        elif nivel == "N2" and self.regiao_selecionada:
-            cache_key = f"regiao_{self.regiao_selecionada.id}"
-            nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
-            label_gerar = f"📊 Gerar CSV — Região {self.regiao_selecionada.nome}"
-            label_baixar = f"📥 CSV - Região {self.regiao_selecionada.nome}"
-            regiao_id = self.regiao_selecionada.id
-            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
-
-        else:
-            cache_key = "brasil_todos_municipios"
-            nome_arquivo = "dados_todos_municipios_brasil"
-            label_gerar = "📊 Gerar CSV — Todos os municípios do Brasil"
-            label_baixar = "📥 CSV - Todos os municípios"
-            gerar_fn = lambda: exportador_service.gerar_dados_todos_municipios()
-
-        session_key = f"export_df_{cache_key}"
-
-        # Se ainda não geramos os dados deste contexto nesta sessão,
-        # mostramos apenas um botão para o usuário pedir a geração.
-        if session_key not in st.session_state:
-            gerar_clicado = st.sidebar.button(
-                label_gerar, use_container_width=True, key=f"gerar_{cache_key}"
-            )
-            if not gerar_clicado:
-                st.sidebar.caption("Clique para gerar o arquivo (pode levar alguns segundos).")
+        # Buscar os dados com base na seleção
+        df = None
+        nome_arquivo = "dados"
+        label = "📥 Baixar CSV"
+        
+        try:
+            if nivel == "N6" and self.estado_selecionado:
+                # Nível município - dados dos municípios do estado
+                df = exportador_service.gerar_dados_municipios_estado(self.estado_selecionado.id)
+                nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
+                label = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
+            
+            elif nivel == "N3" and self.estado_selecionado:
+                # Nível estado - dados do estado
+                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id if self.regiao_selecionada else None)
+                nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
+                label = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
+            
+            elif nivel == "N2" and self.regiao_selecionada:
+                # Nível região - dados dos estados da região
+                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id)
+                nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
+                label = f"📥 CSV - Região {self.regiao_selecionada.nome}"
+            
+            else:
+                # Nível Brasil - dados de TODOS os municípios
+                df = exportador_service.gerar_dados_todos_municipios()
+                nome_arquivo = "dados_todos_municipios_brasil"
+                label = "📥 CSV - Todos os municípios"
+            
+            # Verificar se há dados
+            if df is None or df.empty:
+                st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
                 return
-
-            with st.sidebar:
-                with st.spinner("Gerando arquivo..."):
-                    try:
-                        st.session_state[session_key] = gerar_fn()
-                    except Exception as e:
-                        st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
-                        return
-
-        df = st.session_state.get(session_key)
-
-        if df is None or df.empty:
-            st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
-            return
-
-        csv_data = exportador_service.exportar_para_csv(df)
-
-        with st.sidebar.container():
-            st.download_button(
-                label=label_baixar,
-                data=csv_data,
-                file_name=f"{nome_arquivo}.csv",
-                mime="text/csv",
-                use_container_width=True,
-                key=f"sidebar_export_{cache_key}"
-            )
-            st.caption(f"📊 {len(df):,} registros")
+            
+            # Botão de download
+            csv_data = exportador_service.exportar_para_csv(df)
+            
+            # Usar st.download_button com um container para garantir renderização
+            with st.sidebar.container():
+                st.download_button(
+                    label=label,
+                    data=csv_data,
+                    file_name=f"{nome_arquivo}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key=f"sidebar_export_{nome_arquivo}"
+                )
+                
+                # Mostrar quantidade de registros
+                st.caption(f"📊 {len(df):,} registros")
+                
+        except Exception as e:
+            st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
+            st.sidebar.exception(e)
     
     def _render_linkedin_footer(self):
         """
@@ -253,6 +280,7 @@ class SidebarFilters:
         """
         linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
         
+        # Versão com texto simples e ícone
         st.sidebar.markdown(
             f"""
             <div style="text-align: center; padding: 10px 0 5px 0;">
@@ -282,7 +310,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return "N2"
         else:
-            return "N1"  # BRASIL (padrão)
+            return "N1"
     
     def _determinar_codigo(self) -> int:
         """Determina o código IBGE baseado nas seleções"""
@@ -293,7 +321,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.id
         else:
-            return 1  # Brasil (código 1)
+            return 1  # Brasil
     
     def _get_breadcrumb(self) -> str:
         """Monta o breadcrumb para display"""
@@ -306,7 +334,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return f"Região {self.regiao_selecionada.nome}"
         else:
-            return "Visão nacional"  # Padrão
+            return "Visão nacional"
     
     def _get_nome_local(self) -> str:
         """Retorna o nome da localidade selecionada"""
@@ -317,7 +345,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.nome
         else:
-            return "Brasil"  # Padrão
+            return "Brasil"
 
 
 # Instância global
