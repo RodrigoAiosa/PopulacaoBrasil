@@ -24,7 +24,7 @@ def render_ranking_table(
     Ordenada por população (maior para menor)
     """
     if not ranking:
-        st.info("ℹ️ Sem dados de ranking disponíveis para esta seleção.")
+        # Não exibe nada se não houver dados
         return
     
     # Limitar itens se especificado
