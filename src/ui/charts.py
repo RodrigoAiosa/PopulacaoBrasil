@@ -26,7 +26,7 @@ def render_ranking_chart(
     top = ranking[:max_items] if ranking else []
     
     if not top:
-        st.info("ℹ️ Sem dados de ranking disponíveis para esta seleção.")
+        # Não exibe nada se não houver dados
         return
     
     # Preparar dados
@@ -96,7 +96,7 @@ def render_ranking_table(
     Ordenada por população (maior para menor)
     """
     if not ranking:
-        st.info("ℹ️ Sem dados de ranking disponíveis para esta seleção.")
+        # Não exibe nada se não houver dados
         return
     
     # Limitar itens se especificado
