@@ -50,8 +50,8 @@ class Agregados:
     """IDs dos agregados do SIDRA"""
     POPULACAO_ESTIMADA = 6579
     CENSO_AREA_DENSIDADE = 4714
-    PIB_MUNICIPIOS = 5938  # PIB dos Municípios
-    RENDA_PER_CAPITA = 5964  # Renda per capita (PIB per capita)
+    PIB_MUNICIPIOS = 5938  # PIB dos Municípios - dados anuais
+    RENDA_PER_CAPITA = 5964  # Renda per capita (PIB per capita) - dados anuais
 
 
 @dataclass(frozen=True)
@@ -59,10 +59,13 @@ class Variaveis:
     """IDs das variáveis dos agregados"""
     POPULACAO_ESTIMADA = 9324
     
-    # PIB e Renda
+    # PIB e Renda (Agregado 5938)
     PIB_TOTAL = 37  # PIB total (R$ 1.000)
-    PIB_PER_CAPITA = 38  # PIB per capita (R$)
     VALOR_ADICIONADO = 39  # Valor Adicionado Bruto
+    IMPOSTOS = 41  # Impostos
+    
+    # PIB per capita (Agregado 5964)
+    PIB_PER_CAPITA = 38  # PIB per capita (R$)
     
     # Nomes para busca dinâmica
     AREA = "Área"
@@ -91,3 +94,6 @@ class NiveisTerritoriais:
 
 # Símbolos que representam dados inválidos no SIDRA
 SIDRA_INVALID_SYMBOLS = {"-", "..", "...", "X", ""}
+
+# Períodos disponíveis para PIB (anos mais recentes)
+PIB_PERIODOS = ["2021", "2020", "2019", "2018", "2017"]
