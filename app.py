@@ -151,3 +151,74 @@ def main():
                 NiveisTerritoriais.ESTADO,
                 [e.id for e in todos_estados],
                 [e.nome for e in todos_estados]
+            )
+        else:
+            estados_para_mapa = [
+                {"nome": e.nome, "sigla": e.sigla} for e in todos_estados
+            ]
+            ranking_mapa = ranking
+
+        dados_mapa = mapas_service.preparar_dados_mapa(
+            ranking_mapa,
+            estados_para_mapa
+        )
+    
+    # Renderizar hero
+    render_hero_section(
+        breadcrumb=selecoes["breadcrumb"],
+        populacao=indicadores.populacao,
+        nome_local=selecoes["nome_local"]
+    )
+    
+    # Renderizar cards
+    render_indicators_cards(
+        indicadores=indicadores,
+        card4_label=card4_label,
+        card4_value=card4_value,
+        card4_unit=card4_unit,
+        card4_foot=card4_foot
+    )
+    
+    # Renderizar ranking (tabela para municípios/estados, gráfico para regiões/brasil)
+    esta_na_visao_municipio_estado = selecoes["municipio"] or selecoes["estado"]
+    esta_na_visao_brasil = not (
+        selecoes["regiao"] or selecoes["estado"] or selecoes["municipio"]
+    )
+    
+    if esta_na_visao_municipio_estado:
+        # Para municípios e estados, mostra a tabela com 3 colunas
+        # Mostra todos os municípios, não apenas o top 10
+        render_ranking_table(
+            ranking=ranking,
+            title=chart_title,
+            highlight_nome=highlight_nome,
+            max_items=None  # Mostra todos
+        )
+    else:
+        # Para regiões e Brasil, mostra o gráfico de barras
+        max_items_ranking = len(ranking) if esta_na_visao_brasil else None
+        render_ranking_chart(
+            ranking=ranking,
+            title=chart_title,
+            highlight_nome=highlight_nome,
+            max_items=max_items_ranking
+        )
+    
+    # Renderizar mapa
+    if selecoes["regiao"]:
+        titulo_mapa = f"🗺️ Mapa: população por estado - Região {selecoes['regiao'].nome}"
+    else:
+        titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
+    
+    render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
+    
+    # Rodapé
+    st.caption(UI_TEXTS["source"])
+    
+    # Mostrar status do modo offline
+    if modo_offline:
+        st.info("📡 **Modo Offline Ativo** - Dados limitados disponíveis.")
+
+
+if __name__ == "__main__":
+    main()
