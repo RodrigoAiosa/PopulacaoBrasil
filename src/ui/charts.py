@@ -54,8 +54,13 @@ def render_ranking_chart(
     )
     
     # Layout
+    # Altura proporcional à quantidade de itens, para não espremer as barras
+    # quando exibimos a lista completa (ex: os 27 estados na visão Brasil).
+    altura_por_item = 26
+    altura_dinamica = max(CHART_CONFIG["chart_height"], len(top) * altura_por_item)
+
     fig.update_layout(
-        height=CHART_CONFIG["chart_height"],
+        height=altura_dinamica,
         margin=dict(l=10, r=10, t=10, b=10),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
