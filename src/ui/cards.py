@@ -22,8 +22,8 @@ def render_indicators_cards(
     tem_renda = indicadores.pib_per_capita is not None
     
     if tem_renda:
-        # 5 cards com renda e PIB
-        col1, col2, col3, col4, col5 = st.columns(5)
+        # 6 cards com renda, PIB e IDHM
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
         
         with col1:
             render_card(
@@ -63,6 +63,19 @@ def render_indicators_cards(
                 indicadores.pib_total_formatado if indicadores.pib_total else "—",
                 "",
                 "PIB do município (IBGE)"
+            )
+
+        with col6:
+            idhm_rodape = (
+                f"IDHM {indicadores.idhm_ano} · {indicadores.idhm_faixa} (Atlas Brasil)"
+                if indicadores.idhm is not None
+                else "Sem dado local disponível"
+            )
+            render_card(
+                "IDHM",
+                indicadores.idhm_formatado,
+                "",
+                idhm_rodape
             )
     else:
         # 4 cards originais (para Brasil e Regiões)
