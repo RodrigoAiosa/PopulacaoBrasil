@@ -5,6 +5,7 @@ import streamlit as st
 from typing import Tuple, Optional, Dict, Any
 
 from src.services.localidades import localidades_service
+from src.services.exportador import exportador_service
 from src.models.schemas import Regiao, Estado, Municipio
 from src.utils.constants import FILTER_OPTIONS
 
@@ -160,67 +161,91 @@ class SidebarFilters:
     
     def _render_export_button(self):
         """
-        Renderiza o botão de exportação na sidebar
+        Renderiza o botão de exportação na sidebar.
+
+        IMPORTANTE (performance): a geração do CSV só acontece quando o
+        usuário clica explicitamente em "Gerar CSV". Antes, o DataFrame era
+        recalculado automaticamente a cada carregamento/rerun da página —
+        inclusive a versão "todos os municípios do Brasil" (5.500+ linhas) —
+        o que travava a tela principal antes mesmo dela aparecer. Agora nada
+        disso roda até o usuário pedir.
         """
-        from src.services.exportador import exportador_service
-        
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
         
-        # Determinar o tipo de dados a exportar
         nivel = self._determinar_nivel()
         
-        # Buscar os dados com base na seleção
-        df = None
-        nome_arquivo = "dados"
-        label = "📥 Baixar CSV"
-        
-        try:
-            if nivel == "N6" and self.estado_selecionado:
-                # Nível município - dados dos municípios do estado
-                df = exportador_service.gerar_dados_municipios_estado(self.estado_selecionado.id)
-                nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
-                label = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
-            
-            elif nivel == "N3" and self.estado_selecionado:
-                # Nível estado - dados do estado
-                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id if self.regiao_selecionada else None)
-                nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
-                label = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
-            
-            elif nivel == "N2" and self.regiao_selecionada:
-                # Nível região - dados dos estados da região
-                df = exportador_service.gerar_dados_estados(self.regiao_selecionada.id)
-                nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
-                label = f"📥 CSV - Região {self.regiao_selecionada.nome}"
-            
-            else:
-                # Nível Brasil - dados de TODOS os municípios
-                df = exportador_service.gerar_dados_todos_municipios()
-                nome_arquivo = "dados_todos_municipios_brasil"
-                label = "📥 CSV - Todos os municípios"
-            
-            # Verificar se há dados
-            if df is None or df.empty:
-                st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
+        # Apenas define QUAL função vai gerar os dados e a chave de cache —
+        # nada é executado ainda nesta etapa.
+        if nivel == "N6" and self.estado_selecionado:
+            cache_key = f"municipios_{self.estado_selecionado.id}"
+            nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Municípios de {self.estado_selecionado.sigla}"
+            label_baixar = f"📥 CSV - Municípios de {self.estado_selecionado.sigla}"
+            estado_id = self.estado_selecionado.id
+            gerar_fn = lambda: exportador_service.gerar_dados_municipios_estado(estado_id)
+
+        elif nivel == "N3" and self.estado_selecionado:
+            cache_key = f"estado_{self.estado_selecionado.id}"
+            nome_arquivo = f"dados_estado_{self.estado_selecionado.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Estado {self.estado_selecionado.sigla}"
+            label_baixar = f"📥 CSV - Estado {self.estado_selecionado.sigla}"
+            regiao_id = self.regiao_selecionada.id if self.regiao_selecionada else None
+            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
+
+        elif nivel == "N2" and self.regiao_selecionada:
+            cache_key = f"regiao_{self.regiao_selecionada.id}"
+            nome_arquivo = f"dados_regiao_{self.regiao_selecionada.sigla.lower()}"
+            label_gerar = f"📊 Gerar CSV — Região {self.regiao_selecionada.nome}"
+            label_baixar = f"📥 CSV - Região {self.regiao_selecionada.nome}"
+            regiao_id = self.regiao_selecionada.id
+            gerar_fn = lambda: exportador_service.gerar_dados_estados(regiao_id)
+
+        else:
+            cache_key = "brasil_todos_municipios"
+            nome_arquivo = "dados_todos_municipios_brasil"
+            label_gerar = "📊 Gerar CSV — Todos os municípios do Brasil"
+            label_baixar = "📥 CSV - Todos os municípios"
+            gerar_fn = lambda: exportador_service.gerar_dados_todos_municipios()
+
+        session_key = f"export_df_{cache_key}"
+
+        # Se ainda não geramos os dados deste contexto nesta sessão,
+        # mostramos apenas um botão para o usuário pedir a geração.
+        if session_key not in st.session_state:
+            gerar_clicado = st.sidebar.button(
+                label_gerar, use_container_width=True, key=f"gerar_{cache_key}"
+            )
+            if not gerar_clicado:
+                st.sidebar.caption("Clique para gerar o arquivo (pode levar alguns segundos).")
                 return
-            
-            # Botão de download
-            csv_data = exportador_service.exportar_para_csv(df)
-            
-            with st.sidebar.container():
-                st.download_button(
-                    label=label,
-                    data=csv_data,
-                    file_name=f"{nome_arquivo}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    key=f"sidebar_export_{nome_arquivo}"
-                )
-                st.caption(f"📊 {len(df):,} registros")
-                
-        except Exception as e:
-            st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
+
+            with st.sidebar:
+                with st.spinner("Gerando arquivo..."):
+                    try:
+                        st.session_state[session_key] = gerar_fn()
+                    except Exception as e:
+                        st.sidebar.error(f"❌ Erro ao gerar dados: {str(e)[:100]}")
+                        return
+
+        df = st.session_state.get(session_key)
+
+        if df is None or df.empty:
+            st.sidebar.info("ℹ️ Sem dados disponíveis para exportar")
+            return
+
+        csv_data = exportador_service.exportar_para_csv(df)
+
+        with st.sidebar.container():
+            st.download_button(
+                label=label_baixar,
+                data=csv_data,
+                file_name=f"{nome_arquivo}.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key=f"sidebar_export_{cache_key}"
+            )
+            st.caption(f"📊 {len(df):,} registros")
     
     def _render_linkedin_footer(self):
         """
