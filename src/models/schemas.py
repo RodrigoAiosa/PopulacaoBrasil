@@ -107,7 +107,7 @@ class IndicadorDemografico:
 
 @dataclass
 class RankingItem:
-    """Item do ranking populacional"""
+    """Item do ranking populacional com renda per capita"""
     nome: str
     populacao: float
     renda_per_capita: Optional[float] = None
