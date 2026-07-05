@@ -45,7 +45,12 @@ section[data-testid="stSidebar"] {
     background: var(--primary-dark);
 }
 
-/* Cor do texto dos comboboxes na sidebar - COR BRANCA */
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] .stAlert {
+    color: #EAF2EE !important;
+}
+
 section[data-testid="stSidebar"] .stSelectbox label { 
     font-weight: 600; 
     letter-spacing: .03em; 
@@ -55,7 +60,6 @@ section[data-testid="stSidebar"] .stSelectbox label {
     color: #FFFFFF !important;
 }
 
-/* Texto do select (o valor selecionado) */
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.25);
@@ -63,27 +67,22 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     color: #FFFFFF !important;
 }
 
-/* Texto dentro do input do select */
 section[data-testid="stSidebar"] div[data-baseweb="select"] input {
     color: #FFFFFF !important;
 }
 
-/* Texto do placeholder do select */
 section[data-testid="stSidebar"] div[data-baseweb="select"] input::placeholder {
     color: rgba(255,255,255,0.6) !important;
 }
 
-/* Texto dos itens do dropdown (opções) */
 section[data-testid="stSidebar"] div[data-baseweb="select"] ul li {
     color: #12241F !important;
 }
 
-/* Texto dos itens do dropdown quando hover */
 section[data-testid="stSidebar"] div[data-baseweb="select"] ul li:hover {
     background: rgba(31, 111, 92, 0.1) !important;
 }
 
-/* Texto dos itens selecionados no dropdown */
 section[data-testid="stSidebar"] div[data-baseweb="select"] ul li[aria-selected="true"] {
     background: rgba(31, 111, 92, 0.15) !important;
     color: #12241F !important;
@@ -94,28 +93,18 @@ section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
     border-color: rgba(255,255,255,0.4);
 }
 
-/* Headers na sidebar */
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3 {
     color: #EAF2EE !important;
 }
 
-/* Caption na sidebar */
 section[data-testid="stSidebar"] .caption {
     opacity: 0.7;
     font-size: 0.8rem;
     color: #EAF2EE !important;
 }
 
-/* Textos gerais na sidebar */
-section[data-testid="stSidebar"] .stMarkdown,
-section[data-testid="stSidebar"] .stCaption,
-section[data-testid="stSidebar"] .stAlert {
-    color: #EAF2EE !important;
-}
-
-/* Selectbox desabilitado (quando não há estado selecionado) */
 section[data-testid="stSidebar"] .stSelectbox[disabled] input {
     color: rgba(255,255,255,0.5) !important;
 }
@@ -145,7 +134,6 @@ section[data-testid="stSidebar"] .stButton button:active {
     transform: translateY(0px);
 }
 
-/* Download button na sidebar */
 section[data-testid="stSidebar"] .stDownloadButton button {
     background: var(--gold) !important;
     color: var(--primary-dark) !important;
@@ -168,9 +156,6 @@ section[data-testid="stSidebar"] .stDownloadButton button:active {
     transform: translateY(0px);
 }
 
-/* ========================================
-   WARNINGS E INFOS NA SIDEBAR
-   ======================================== */
 section[data-testid="stSidebar"] .stAlert {
     background: rgba(201, 150, 46, 0.15) !important;
     border-color: var(--gold) !important;
@@ -182,9 +167,6 @@ section[data-testid="stSidebar"] .stAlert .stAlertIcon {
     color: var(--gold) !important;
 }
 
-/* ========================================
-   EXPANDER NA SIDEBAR
-   ======================================== */
 section[data-testid="stSidebar"] .streamlit-expanderHeader {
     color: #EAF2EE !important;
     opacity: 0.8;
@@ -403,17 +385,16 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     background: var(--primary-dark);
 }
 
-/* ========================================
-   SELECIONADORES DE TEXTO
-   ======================================== */
+::-moz-selection {
+    background: var(--gold);
+    color: var(--primary-dark);
+}
+
 ::selection {
     background: var(--gold);
     color: var(--primary-dark);
 }
 
-/* ========================================
-   TOOLTIP PERSONALIZADO
-   ======================================== */
 [data-testid="stTooltip"] {
     background: var(--primary-dark) !important;
     color: #EAF2EE !important;
