@@ -35,7 +35,7 @@ html, body, [class*="css"] {
 .block-container { 
     padding-top: 1.5rem; 
     padding-bottom: 3rem; 
-    max-width: 1180px; 
+    max-width: 1280px; 
 }
 
 /* ========================================
@@ -238,20 +238,29 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
 }
 
 /* ========================================
-   CARDS - CORRIGIDO PARA VALORES NA MESMA LINHA
+   CARDS - LARGURA AJUSTADA PARA 5 COLUNAS
    ======================================== */
+/* Container dos cards com largura total */
+div[data-testid="column"] {
+    min-width: 0;
+    flex: 1 1 0px;
+}
+
+/* Card individual */
 .card {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 1.3rem 1.4rem;
+    padding: 1.1rem 1rem;
     animation: fadeUp .6s ease-out;
-    min-height: 148px;
+    min-height: 130px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     transition: all 0.3s ease;
     height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
 .card:hover {
@@ -260,56 +269,72 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
 }
 
 .card-label {
-    font-size: 0.72rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: .06em;
+    letter-spacing: .05em;
     color: var(--muted);
     font-weight: 600;
-    line-height: 1.3;
-    margin-bottom: 0.3rem;
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .card-value-wrapper {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
-    gap: 0.2rem;
+    gap: 0.15rem;
     min-height: 2.2rem;
     margin-top: 0.2rem;
+    overflow: hidden;
 }
 
 .card-value {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     font-weight: 600;
     color: var(--primary-dark);
     line-height: 1.2;
     white-space: nowrap;
     word-break: keep-all;
     display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ajuste para valores grandes (população) */
+.card-value-large {
+    font-size: 1.4rem;
+}
+
+/* Ajuste para valores pequenos (PIB total) */
+.card-value-small {
+    font-size: 1rem;
 }
 
 .card-unit {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     color: var(--muted);
-    margin-left: 0.2rem;
+    margin-left: 0.15rem;
     font-family: 'IBM Plex Sans', sans-serif;
     white-space: nowrap;
     display: inline-block;
     line-height: 1.2;
+    flex-shrink: 0;
 }
 
 .card-foot {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     color: var(--gold);
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;
     font-weight: 500;
-    line-height: 1.3;
-}
-
-/* Ajuste para números pequenos (como PIB Total) */
-.card-value-small {
-    font-size: 1.2rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ========================================
@@ -359,13 +384,51 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
 /* ========================================
    RESPONSIVIDADE
    ======================================== */
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
+    .block-container { 
+        max-width: 100%; 
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (max-width: 992px) {
     .card-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
+    }
+    .card-value-large {
+        font-size: 1.2rem;
     }
     .card {
-        min-height: 120px;
-        padding: 1rem;
+        padding: 0.9rem 0.8rem;
+        min-height: 110px;
+    }
+    .card-label {
+        font-size: 0.6rem;
+    }
+    .card-unit {
+        font-size: 0.6rem;
+    }
+    .card-foot {
+        font-size: 0.6rem;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Em telas médias, 5 colunas podem virar 2-3 colunas */
+    div[data-testid="column"] {
+        min-width: 150px;
+        flex: 1 1 auto;
+    }
+    .card {
+        padding: 0.8rem 0.6rem;
+        min-height: 100px;
+    }
+    .card-value {
+        font-size: 0.9rem;
+    }
+    .card-value-large {
+        font-size: 1rem;
     }
 }
 
@@ -379,12 +442,28 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     }
     
     .card {
-        min-height: 110px;
-        padding: 0.8rem;
+        min-height: 90px;
+        padding: 0.6rem 0.5rem;
     }
     
     .card-value {
-        font-size: 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .card-value-large {
+        font-size: 0.9rem;
+    }
+    
+    .card-label {
+        font-size: 0.55rem;
+    }
+    
+    .card-unit {
+        font-size: 0.55rem;
+    }
+    
+    .card-foot {
+        font-size: 0.55rem;
     }
     
     section[data-testid="stSidebar"] {
