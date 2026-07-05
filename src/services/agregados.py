@@ -5,7 +5,10 @@ from typing import List, Tuple, Optional, Dict, Any
 import streamlit as st
 import requests
 
-from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais, SIDRA_INVALID_SYMBOLS
+from src.api.endpoints import (
+    APIEndpoints, Agregados, Variaveis, NiveisTerritoriais,
+    SIDRA_INVALID_SYMBOLS, PIB_PERIODOS,
+)
 from src.models.schemas import IndicadorDemografico, RankingItem
 from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
 
@@ -183,6 +186,67 @@ class AgregadosService:
             return resultado
         except Exception:
             return {}
+
+    @staticmethod
+    def get_valores_renda_per_capita_lote(
+        nivel: str,
+        codigos: List[int],
+        periodos: Optional[List[str]] = None
+    ) -> Dict[int, float]:
+        """
+        Busca a renda per capita (PIB per capita) de VÁRIAS localidades de uma vez,
+        em no máximo 1 requisição por período tentado — em vez de 1 requisição
+        POR LOCALIDADE (que é o que causava a demora ao trocar de filtro).
+
+        Tenta cada período em `periodos` (do mais recente para o mais antigo) e,
+        a cada tentativa, só busca os códigos que ainda não tiveram valor
+        encontrado nos períodos anteriores.
+        """
+        if not codigos:
+            return {}
+
+        periodos = periodos or PIB_PERIODOS
+        pendentes = list(dict.fromkeys(codigos))  # remove duplicados, mantém ordem
+        resultado: Dict[int, float] = {}
+
+        for periodo in periodos:
+            if not pendentes:
+                break
+            try:
+                query = ",".join(str(c) for c in pendentes)
+                data = _fetch_valores_agregado_lote(
+                    Agregados.RENDA_PER_CAPITA,
+                    Variaveis.PIB_PER_CAPITA,
+                    f"{nivel}[{query}]",
+                    periodo
+                )
+                if not data:
+                    continue
+
+                series = data[0].get("resultados", [{}])[0].get("series", [])
+                for item in series:
+                    try:
+                        localidade_id = int(item["localidade"]["id"])
+                        if localidade_id in resultado:
+                            continue
+
+                        serie = item.get("serie", {})
+                        valor_bruto = serie.get(periodo)
+                        if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
+                            continue
+
+                        valor_str = str(valor_bruto).strip().replace(".", "").replace(",", ".")
+                        valor_float = float(valor_str)
+                        if valor_float > 0:
+                            resultado[localidade_id] = valor_float
+                    except (KeyError, ValueError, TypeError):
+                        continue
+
+                pendentes = [c for c in pendentes if c not in resultado]
+            except Exception:
+                continue
+
+        return resultado
 
     @staticmethod
     def get_pib_total(nivel: str, codigo: int) -> Optional[float]:
@@ -421,16 +485,20 @@ class AgregadosService:
         if not codigos:
             return []
 
-        # Busca população em lote
+        # Busca população em lote (1 requisição)
         query = ",".join(str(c) for c in codigos)
         valores_populacao = AgregadosService.get_valores_populacao_lote(f"{nivel}[{query}]")
-        
+
+        # Busca renda per capita em lote (no máx. 1 requisição por período tentado,
+        # em vez de 1 requisição POR MUNICÍPIO — é isso que fazia a troca de
+        # filtro demorar em estados com muitos municípios)
+        valores_renda = AgregadosService.get_valores_renda_per_capita_lote(nivel, codigos)
+
         resultados = []
         for codigo, nome in zip(codigos, nomes):
             if codigo in valores_populacao:
                 populacao = valores_populacao[codigo]
-                # Busca renda per capita individualmente
-                renda = AgregadosService.get_renda_per_capita(nivel, codigo)
+                renda = valores_renda.get(codigo)
                 resultados.append(
                     RankingItem(
                         nome=nome,
