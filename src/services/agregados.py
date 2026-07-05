@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional, Dict, Any
 import streamlit as st
 import requests
 
-from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais
+from src.api.endpoints import APIEndpoints, Agregados, Variaveis, NiveisTerritoriais, SIDRA_INVALID_SYMBOLS
 from src.models.schemas import IndicadorDemografico, RankingItem
 from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
 
@@ -28,6 +28,23 @@ def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, p
     try:
         url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
         resp = requests.get(url, params={"localidades": localidade}, timeout=API_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
+def _fetch_valores_agregado_lote(agregado_id: int, variavel_id: int, localidade_query: str, periodo: str = "-1") -> Optional[Any]:
+    """
+    Função cacheada para buscar valores de VÁRIAS localidades em UMA ÚNICA requisição.
+    localidade_query aceita a sintaxe nativa da API do IBGE, ex:
+    "N3[all]" (todos os estados), "N6[N3[35]]" (municípios de SP),
+    "N3[11,12,13]" (estados específicos).
+    """
+    try:
+        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
+        resp = requests.get(url, params={"localidades": localidade_query}, timeout=API_TIMEOUT)
         resp.raise_for_status()
         return resp.json()
     except Exception:
@@ -135,6 +152,51 @@ class AgregadosService:
             return None
     
     @staticmethod
+    def get_valores_populacao_lote(
+        localidade_query: str,
+        periodo: str = "-1"
+    ) -> Dict[int, float]:
+        """
+        Busca a população de VÁRIAS localidades em UMA ÚNICA requisição HTTP
+        (em vez de uma requisição por localidade). Retorna {codigo_ibge: populacao}.
+        """
+        try:
+            data = _fetch_valores_agregado_lote(
+                Agregados.POPULACAO_ESTIMADA,
+                Variaveis.POPULACAO_ESTIMADA,
+                localidade_query,
+                periodo
+            )
+            if not data:
+                return {}
+
+            series = data[0]["resultados"][0]["series"]
+            resultado: Dict[int, float] = {}
+
+            for item in series:
+                try:
+                    localidade_id = int(item["localidade"]["id"])
+                    serie = item["serie"]
+                    if not serie:
+                        continue
+
+                    ultimo_periodo = sorted(serie.keys())[-1]
+                    valor_bruto = serie[ultimo_periodo]
+
+                    if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
+                        continue
+
+                    clean_value = str(valor_bruto).replace(",", ".")
+                    resultado[localidade_id] = float(clean_value)
+                except (KeyError, ValueError, TypeError):
+                    continue
+
+            return resultado
+        except Exception as e:
+            st.warning(f"⚠️ Erro ao obter valores em lote: {str(e)}")
+            return {}
+
+    @staticmethod
     def get_indicadores_demograficos(nivel: str, codigo: int) -> IndicadorDemografico:
         """
         Obtém todos os indicadores demográficos para uma localidade
@@ -188,19 +250,26 @@ class AgregadosService:
         nomes: List[str]
     ) -> List[RankingItem]:
         """
-        Gera ranking populacional para uma lista de localidades
+        Gera ranking populacional para uma lista de localidades.
+
+        Performance: faz UMA ÚNICA requisição HTTP para todas as localidades
+        (usando a sintaxe nativa da API do IBGE "N3[cod1,cod2,...]"), em vez
+        de uma requisição por localidade. Isso torna as trocas de filtro no
+        menu praticamente instantâneas, mesmo para níveis com muitos itens
+        (ex: os ~645 municípios de São Paulo).
         """
-        resultados = []
-        for codigo, nome in zip(codigos, nomes):
-            valor = AgregadosService.get_valor_agregado(
-                Agregados.POPULACAO_ESTIMADA,
-                Variaveis.POPULACAO_ESTIMADA,
-                nivel,
-                codigo
-            )
-            if valor is not None:
-                resultados.append(RankingItem(nome=nome, populacao=valor))
-        
+        if not codigos:
+            return []
+
+        query = ",".join(str(c) for c in codigos)
+        valores = AgregadosService.get_valores_populacao_lote(f"{nivel}[{query}]")
+
+        resultados = [
+            RankingItem(nome=nome, populacao=valores[codigo])
+            for codigo, nome in zip(codigos, nomes)
+            if codigo in valores
+        ]
+
         return sorted(resultados, key=lambda r: r.populacao, reverse=True)
     
     @staticmethod
