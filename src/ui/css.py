@@ -238,7 +238,7 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
 }
 
 /* ========================================
-   CARDS
+   CARDS - CORRIGIDO PARA VALORES NA MESMA LINHA
    ======================================== */
 .card {
     background: var(--surface);
@@ -251,6 +251,7 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     flex-direction: column;
     justify-content: space-between;
     transition: all 0.3s ease;
+    height: 100%;
 }
 
 .card:hover {
@@ -265,6 +266,16 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     color: var(--muted);
     font-weight: 600;
     line-height: 1.3;
+    margin-bottom: 0.3rem;
+}
+
+.card-value-wrapper {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    min-height: 2.2rem;
+    margin-top: 0.2rem;
 }
 
 .card-value {
@@ -272,25 +283,33 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     font-size: 1.4rem;
     font-weight: 600;
     color: var(--primary-dark);
-    margin-top: .3rem;
-    line-height: 1.25;
-    white-space: normal;
+    line-height: 1.2;
+    white-space: nowrap;
+    word-break: keep-all;
+    display: inline-block;
 }
 
 .card-unit {
     font-size: 0.78rem;
     color: var(--muted);
-    margin-left: .3rem;
+    margin-left: 0.2rem;
     font-family: 'IBM Plex Sans', sans-serif;
     white-space: nowrap;
+    display: inline-block;
+    line-height: 1.2;
 }
 
 .card-foot {
     font-size: 0.78rem;
     color: var(--gold);
-    margin-top: .5rem;
+    margin-top: 0.5rem;
     font-weight: 500;
     line-height: 1.3;
+}
+
+/* Ajuste para números pequenos (como PIB Total) */
+.card-value-small {
+    font-size: 1.2rem;
 }
 
 /* ========================================
@@ -340,6 +359,16 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
 /* ========================================
    RESPONSIVIDADE
    ======================================== */
+@media (max-width: 900px) {
+    .card-value {
+        font-size: 1.1rem;
+    }
+    .card {
+        min-height: 120px;
+        padding: 1rem;
+    }
+}
+
 @media (max-width: 600px) {
     .hero {
         padding: 1.8rem 1.5rem;
@@ -350,12 +379,12 @@ section[data-testid="stSidebar"] .streamlit-expanderContent {
     }
     
     .card {
-        min-height: 120px;
-        padding: 1rem;
+        min-height: 110px;
+        padding: 0.8rem;
     }
     
     .card-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
     
     section[data-testid="stSidebar"] {
