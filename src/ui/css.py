@@ -105,6 +105,15 @@ section[data-testid="stSidebar"] .caption {
     color: #EAF2EE !important;
 }
 
+/* Link da fonte de dados (IBGE) na sidebar — preto, sobrescrevendo a cor
+   padrão de link do tema do Streamlit */
+section[data-testid="stSidebar"] a,
+section[data-testid="stSidebar"] a:visited,
+section[data-testid="stSidebar"] a:hover,
+section[data-testid="stSidebar"] a:active {
+    color: #000000 !important;
+}
+
 section[data-testid="stSidebar"] .stSelectbox[disabled] input {
     color: rgba(255,255,255,0.5) !important;
 }
