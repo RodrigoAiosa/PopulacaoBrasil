@@ -64,8 +64,8 @@ class IndicadorDemografico:
     area: Optional[float] = None
     densidade: Optional[float] = None
     total_municipios: Optional[int] = None
-    pib_per_capita: Optional[float] = None  # Renda per capita
-    pib_total: Optional[float] = None  # PIB total
+    pib_per_capita: Optional[float] = None
+    pib_total: Optional[float] = None
     
     @property
     def populacao_formatada(self) -> str:
@@ -87,14 +87,12 @@ class IndicadorDemografico:
     
     @property
     def pib_per_capita_formatado(self) -> str:
-        """Formata PIB per capita em reais (R$)"""
         if self.pib_per_capita is None:
             return "—"
         return f"R$ {self.pib_per_capita:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     
     @property
     def pib_total_formatado(self) -> str:
-        """Formata PIB total em milhões ou bilhões"""
         if self.pib_total is None:
             return "—"
         
@@ -112,11 +110,18 @@ class RankingItem:
     """Item do ranking populacional"""
     nome: str
     populacao: float
+    renda_per_capita: Optional[float] = None
     destaque: bool = False
     
     @property
     def populacao_formatada(self) -> str:
         return f"{int(round(self.populacao)):,}".replace(",", ".")
+    
+    @property
+    def renda_per_capita_formatada(self) -> str:
+        if self.renda_per_capita is None:
+            return "—"
+        return f"R$ {self.renda_per_capita:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 @dataclass
