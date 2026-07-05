@@ -162,9 +162,15 @@ class SidebarFilters:
         
         # Fonte dos dados
         st.sidebar.markdown("---")
-        st.sidebar.caption(
-            "Fonte: [API de Localidades e Agregados do IBGE]"
-            "(https://servicodados.ibge.gov.br/api/docs) — dados públicos e gratuitos."
+        st.sidebar.markdown(
+            """
+            <p style="font-size: 0.8rem; opacity: 0.85; color: #EAF2EE; margin: 0;">
+                Fonte: <a href="https://servicodados.ibge.gov.br/api/docs" target="_blank"
+                style="color: #000000 !important; text-decoration: underline;">
+                API de Localidades e Agregados do IBGE</a> — dados públicos e gratuitos.
+            </p>
+            """,
+            unsafe_allow_html=True
         )
         
         return {
