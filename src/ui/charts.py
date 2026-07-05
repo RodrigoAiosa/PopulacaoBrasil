@@ -3,6 +3,7 @@ Gráficos e visualizações
 """
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 from typing import List, Optional
 
 from src.models.schemas import RankingItem
@@ -25,7 +26,7 @@ def render_ranking_chart(
     top = ranking[:max_items] if ranking else []
     
     if not top:
-        st.info("Sem dados de ranking disponíveis para esta seleção.")
+        st.info("ℹ️ Sem dados de ranking disponíveis para esta seleção.")
         return
     
     # Preparar dados
@@ -54,8 +55,6 @@ def render_ranking_chart(
     )
     
     # Layout
-    # Altura proporcional à quantidade de itens, para não espremer as barras
-    # quando exibimos a lista completa (ex: os 27 estados na visão Brasil).
     altura_por_item = 26
     altura_dinamica = max(CHART_CONFIG["chart_height"], len(top) * altura_por_item)
 
@@ -79,3 +78,78 @@ def render_ranking_chart(
     )
     
     st.plotly_chart(fig, use_container_width=True)
+
+
+def render_ranking_table(
+    ranking: List[RankingItem],
+    title: str,
+    highlight_nome: Optional[str] = None,
+    max_items: Optional[int] = None
+):
+    """
+    Renderiza uma tabela de ranking com 3 colunas:
+    - Posição
+    - Município
+    - População
+    - Renda per Capita
+    
+    Ordenada por população (maior para menor)
+    """
+    if not ranking:
+        st.info("ℹ️ Sem dados de ranking disponíveis para esta seleção.")
+        return
+    
+    # Limitar itens se especificado
+    if max_items:
+        ranking = ranking[:max_items]
+    
+    # Preparar dados para o DataFrame
+    dados = []
+    for i, item in enumerate(ranking, 1):
+        # Destacar o item selecionado
+        is_highlight = highlight_nome and item.nome == highlight_nome
+        
+        dados.append({
+            "Posição": f"{i}º",
+            "Município": item.nome,
+            "População": item.populacao_formatada,
+            "Renda per Capita": item.renda_per_capita_formatada,
+            "_highlight": is_highlight
+        })
+    
+    # Criar DataFrame
+    df = pd.DataFrame(dados)
+    
+    # Remover coluna auxiliar para exibição
+    df_display = df[["Posição", "Município", "População", "Renda per Capita"]]
+    
+    # Exibir título
+    st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
+    
+    # Exibir tabela estilizada
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Posição": st.column_config.TextColumn(
+                "#",
+                width="small"
+            ),
+            "Município": st.column_config.TextColumn(
+                "Município",
+                width="large"
+            ),
+            "População": st.column_config.TextColumn(
+                "População",
+                width="medium"
+            ),
+            "Renda per Capita": st.column_config.TextColumn(
+                "Renda per Capita",
+                width="medium"
+            )
+        }
+    )
+    
+    # Mostrar total de municípios
+    st.caption(f"📊 Mostrando {len(ranking)} municípios")
