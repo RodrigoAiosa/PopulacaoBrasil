@@ -38,9 +38,6 @@ def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, p
 def _fetch_valores_agregado_lote(agregado_id: int, variavel_id: int, localidade_query: str, periodo: str = "-1") -> Optional[Any]:
     """
     Função cacheada para buscar valores de VÁRIAS localidades em UMA ÚNICA requisição.
-    localidade_query aceita a sintaxe nativa da API do IBGE, ex:
-    "N3[all]" (todos os estados), "N6[N3[35]]" (municípios de SP),
-    "N3[11,12,13]" (estados específicos).
     """
     try:
         url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
@@ -61,10 +58,10 @@ class AgregadosService:
             data = _fetch_metadados(agregado_id)
             if data:
                 return data
-        except Exception as e:
-            st.warning(f"⚠️ Não foi possível obter metadados do agregado {agregado_id}: {str(e)}")
+        except Exception:
+            pass
         
-        # Fallback para metadados do agregado de população
+        # Fallback
         if agregado_id == Agregados.POPULACAO_ESTIMADA:
             return {
                 "id": Agregados.POPULACAO_ESTIMADA,
@@ -86,10 +83,7 @@ class AgregadosService:
     
     @staticmethod
     def find_variavel_id(agregado_id: int, palavra_chave: str) -> Optional[Tuple[int, str, str]]:
-        """
-        Busca ID de uma variável por palavra-chave no nome
-        Retorna (id, nome, unidade) ou None
-        """
+        """Busca ID de uma variável por palavra-chave no nome"""
         try:
             meta = AgregadosService.get_metadados_agregado(agregado_id)
             palavra_chave = palavra_chave.lower()
@@ -97,10 +91,9 @@ class AgregadosService:
             for var in meta.get("variaveis", []):
                 if palavra_chave in var["nome"].lower():
                     return var["id"], var["nome"], var.get("unidade", "")
-        except Exception as e:
-            st.warning(f"⚠️ Erro ao buscar variável: {str(e)}")
+        except Exception:
+            pass
         
-        # Fallback: retorna IDs conhecidos
         if agregado_id == Agregados.CENSO_AREA_DENSIDADE:
             if "área" in palavra_chave.lower():
                 return 1, "Área territorial", "km²"
@@ -116,9 +109,7 @@ class AgregadosService:
         codigo: int,
         periodo: str = "-1"
     ) -> Optional[float]:
-        """
-        Consulta valor mais recente de uma variável para uma localidade
-        """
+        """Consulta valor mais recente de uma variável para uma localidade"""
         try:
             localidade = f"{nivel}[{codigo}]"
             data = _fetch_valor_agregado(agregado_id, variavel_id, localidade, periodo)
@@ -137,7 +128,6 @@ class AgregadosService:
             ultimo_periodo = sorted(serie.keys())[-1]
             valor_bruto = serie[ultimo_periodo]
             
-            # Parse do valor
             if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
                 return None
             
@@ -147,8 +137,7 @@ class AgregadosService:
             except (ValueError, TypeError):
                 return None
                 
-        except Exception as e:
-            st.warning(f"⚠️ Erro ao obter valor do agregado: {str(e)}")
+        except Exception:
             return None
     
     @staticmethod
@@ -156,10 +145,7 @@ class AgregadosService:
         localidade_query: str,
         periodo: str = "-1"
     ) -> Dict[int, float]:
-        """
-        Busca a população de VÁRIAS localidades em UMA ÚNICA requisição HTTP
-        (em vez de uma requisição por localidade). Retorna {codigo_ibge: populacao}.
-        """
+        """Busca a população de VÁRIAS localidades em UMA ÚNICA requisição"""
         try:
             data = _fetch_valores_agregado_lote(
                 Agregados.POPULACAO_ESTIMADA,
@@ -192,69 +178,19 @@ class AgregadosService:
                     continue
 
             return resultado
-        except Exception as e:
-            st.warning(f"⚠️ Erro ao obter valores em lote: {str(e)}")
+        except Exception:
             return {}
-
-    @staticmethod
-    def get_renda_per_capita(nivel: str, codigo: int) -> Optional[float]:
-        """
-        Obtém o PIB per capita (renda) para uma localidade.
-        Tenta múltiplos períodos até encontrar dados.
-        """
-        # Tentar primeiro o período mais recente, depois os anteriores
-        for periodo in PIB_PERIODOS + ["-1"]:
-            try:
-                localidade = f"{nivel}[{codigo}]"
-                data = _fetch_valor_agregado(
-                    Agregados.RENDA_PER_CAPITA,
-                    Variaveis.PIB_PER_CAPITA,
-                    localidade,
-                    periodo
-                )
-                
-                if not data:
-                    continue
-                
-                series = data[0]["resultados"][0]["series"]
-                if not series:
-                    continue
-                
-                serie = series[0]["serie"]
-                if not serie:
-                    continue
-                
-                # Pega o valor do período específico
-                if periodo in serie:
-                    valor_bruto = serie[periodo]
-                else:
-                    # Se o período específico não existir, pega o mais recente
-                    ultimo_periodo = sorted(serie.keys())[-1]
-                    valor_bruto = serie[ultimo_periodo]
-                
-                if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
-                    continue
-                
-                try:
-                    # Remove pontos de milhar e substitui vírgula por ponto
-                    clean_value = str(valor_bruto).replace(".", "").replace(",", ".")
-                    return float(clean_value)
-                except (ValueError, TypeError):
-                    continue
-                    
-            except Exception as e:
-                continue
-        
-        return None
 
     @staticmethod
     def get_pib_total(nivel: str, codigo: int) -> Optional[float]:
         """
-        Obtém o PIB total (em R$ 1.000) para uma localidade.
-        Tenta múltiplos períodos até encontrar dados.
+        Obtém o PIB total (em R$) para uma localidade.
+        Agregado: 5938 - PIB dos Municípios
+        Variável: 37 - PIB total (R$ 1.000)
         """
-        # Tentar primeiro o período mais recente, depois os anteriores
-        for periodo in PIB_PERIODOS + ["-1"]:
+        periodos_para_tentar = ["2021", "2020", "2019", "2018", "2017", "-1"]
+        
+        for periodo in periodos_para_tentar:
             try:
                 localidade = f"{nivel}[{codigo}]"
                 data = _fetch_valor_agregado(
@@ -275,27 +211,110 @@ class AgregadosService:
                 if not serie:
                     continue
                 
-                # Pega o valor do período específico
-                if periodo in serie:
+                # Tenta encontrar o valor
+                valor_bruto = None
+                if periodo in serie and periodo != "-1":
                     valor_bruto = serie[periodo]
                 else:
-                    # Se o período específico não existir, pega o mais recente
-                    ultimo_periodo = sorted(serie.keys())[-1]
-                    valor_bruto = serie[ultimo_periodo]
+                    periodos_disponiveis = sorted(serie.keys())
+                    if periodos_disponiveis:
+                        ultimo_periodo = periodos_disponiveis[-1]
+                        valor_bruto = serie[ultimo_periodo]
                 
                 if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
                     continue
                 
                 try:
-                    # Remove pontos de milhar e substitui vírgula por ponto
                     clean_value = str(valor_bruto).replace(".", "").replace(",", ".")
                     # Valor está em R$ 1.000
                     return float(clean_value) * 1000
                 except (ValueError, TypeError):
                     continue
                     
-            except Exception as e:
+            except Exception:
                 continue
+        
+        return None
+
+    @staticmethod
+    def get_renda_per_capita(nivel: str, codigo: int) -> Optional[float]:
+        """
+        Obtém o PIB per capita (renda) para uma localidade.
+        Tenta múltiplas abordagens:
+        1. Agregado 5964 - PIB per capita direto
+        2. Calcula a partir do PIB total / População
+        """
+        # Primeira abordagem: PIB per capita direto (Agregado 5964)
+        periodos_para_tentar = ["2021", "2020", "2019", "2018", "2017", "-1"]
+        
+        for periodo in periodos_para_tentar:
+            try:
+                localidade = f"{nivel}[{codigo}]"
+                data = _fetch_valor_agregado(
+                    Agregados.RENDA_PER_CAPITA,
+                    Variaveis.PIB_PER_CAPITA,
+                    localidade,
+                    periodo
+                )
+                
+                if not data:
+                    continue
+                
+                resultados = data[0].get("resultados", [])
+                if not resultados:
+                    continue
+                
+                series = resultados[0].get("series", [])
+                if not series:
+                    continue
+                
+                serie = series[0].get("serie", {})
+                if not serie:
+                    continue
+                
+                # Tenta encontrar o valor
+                valor_bruto = None
+                if periodo in serie and periodo != "-1":
+                    valor_bruto = serie[periodo]
+                else:
+                    periodos_disponiveis = sorted(serie.keys())
+                    if periodos_disponiveis:
+                        ultimo_periodo = periodos_disponiveis[-1]
+                        valor_bruto = serie[ultimo_periodo]
+                
+                if valor_bruto is None or str(valor_bruto) in SIDRA_INVALID_SYMBOLS:
+                    continue
+                
+                try:
+                    valor_str = str(valor_bruto).strip()
+                    valor_str = valor_str.replace(".", "").replace(",", ".")
+                    valor_float = float(valor_str)
+                    
+                    if valor_float > 0:
+                        return valor_float
+                except (ValueError, TypeError):
+                    continue
+                    
+            except Exception:
+                continue
+        
+        # Segunda abordagem: Calcular a partir do PIB total e população
+        try:
+            # Obtém a população
+            populacao = AgregadosService.get_valor_agregado(
+                Agregados.POPULACAO_ESTIMADA,
+                Variaveis.POPULACAO_ESTIMADA,
+                nivel,
+                codigo
+            )
+            
+            if populacao and populacao > 0:
+                # Obtém o PIB total
+                pib_total = AgregadosService.get_pib_total(nivel, codigo)
+                if pib_total and pib_total > 0:
+                    return pib_total / populacao
+        except Exception:
+            pass
         
         return None
 
@@ -340,14 +359,23 @@ class AgregadosService:
                 codigo
             )
         
-        # Renda per capita (PIB per capita) - apenas para municípios e estados
+        # Renda per capita e PIB total (apenas para municípios e estados)
         pib_per_capita = None
         pib_total = None
         
-        # Busca dados de renda apenas para municípios e estados
         if nivel in [NiveisTerritoriais.MUNICIPIO, NiveisTerritoriais.ESTADO]:
+            # Tenta obter a renda per capita
             pib_per_capita = AgregadosService.get_renda_per_capita(nivel, codigo)
-            pib_total = AgregadosService.get_pib_total(nivel, codigo)
+            
+            # Se conseguiu a renda per capita, tenta obter o PIB total também
+            if pib_per_capita:
+                pib_total = AgregadosService.get_pib_total(nivel, codigo)
+            
+            # Se não conseguiu a renda per capita, tenta calcular via PIB total
+            if not pib_per_capita:
+                pib_total = AgregadosService.get_pib_total(nivel, codigo)
+                if pib_total and populacao and populacao > 0:
+                    pib_per_capita = pib_total / populacao
         
         return IndicadorDemografico(
             populacao=populacao,
@@ -363,15 +391,7 @@ class AgregadosService:
         codigos: List[int],
         nomes: List[str]
     ) -> List[RankingItem]:
-        """
-        Gera ranking populacional para uma lista de localidades.
-
-        Performance: faz UMA ÚNICA requisição HTTP para todas as localidades
-        (usando a sintaxe nativa da API do IBGE "N3[cod1,cod2,...]"), em vez
-        de uma requisição por localidade. Isso torna as trocas de filtro no
-        menu praticamente instantâneas, mesmo para níveis com muitos itens
-        (ex: os ~645 municípios de São Paulo).
-        """
+        """Gera ranking populacional para uma lista de localidades"""
         if not codigos:
             return []
 
