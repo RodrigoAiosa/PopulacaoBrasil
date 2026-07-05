@@ -410,6 +410,39 @@ class AgregadosService:
         return sorted(resultados, key=lambda r: r.populacao, reverse=True)
     
     @staticmethod
+    def get_ranking_completo(
+        nivel: str,
+        codigos: List[int],
+        nomes: List[str]
+    ) -> List[RankingItem]:
+        """
+        Gera ranking completo com população e renda per capita para uma lista de localidades.
+        """
+        if not codigos:
+            return []
+
+        # Busca população em lote
+        query = ",".join(str(c) for c in codigos)
+        valores_populacao = AgregadosService.get_valores_populacao_lote(f"{nivel}[{query}]")
+        
+        resultados = []
+        for codigo, nome in zip(codigos, nomes):
+            if codigo in valores_populacao:
+                populacao = valores_populacao[codigo]
+                # Busca renda per capita individualmente
+                renda = AgregadosService.get_renda_per_capita(nivel, codigo)
+                resultados.append(
+                    RankingItem(
+                        nome=nome,
+                        populacao=populacao,
+                        renda_per_capita=renda
+                    )
+                )
+
+        # Ordena por população (maior para menor)
+        return sorted(resultados, key=lambda r: r.populacao, reverse=True)
+    
+    @staticmethod
     def get_nivel_display(nivel: str) -> str:
         """Retorna o nome display do nível territorial"""
         return NiveisTerritoriais.DISPLAY.get(nivel, nivel)
