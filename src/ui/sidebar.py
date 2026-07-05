@@ -161,21 +161,12 @@ class SidebarFilters:
     def _render_export_button(self):
         """
         Renderiza o botão de exportação na sidebar.
-
-        IMPORTANTE (performance): a geração do CSV só acontece quando o
-        usuário clica explicitamente em "Gerar CSV". Antes, o DataFrame era
-        recalculado automaticamente a cada carregamento/rerun da página —
-        inclusive a versão "todos os municípios do Brasil" (5.500+ linhas) —
-        o que travava a tela principal antes mesmo dela aparecer. Agora nada
-        disso roda até o usuário pedir.
         """
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
         
         nivel = self._determinar_nivel()
         
-        # Apenas define QUAL função vai gerar os dados e a chave de cache —
-        # nada é executado ainda nesta etapa.
         if nivel == "N6" and self.estado_selecionado:
             cache_key = f"municipios_{self.estado_selecionado.id}"
             nome_arquivo = f"dados_municipios_{self.estado_selecionado.sigla.lower()}"
@@ -209,8 +200,6 @@ class SidebarFilters:
 
         session_key = f"export_df_{cache_key}"
 
-        # Se ainda não geramos os dados deste contexto nesta sessão,
-        # mostramos apenas um botão para o usuário pedir a geração.
         if session_key not in st.session_state:
             gerar_clicado = st.sidebar.button(
                 label_gerar, use_container_width=True, key=f"gerar_{cache_key}"
@@ -252,105 +241,56 @@ class SidebarFilters:
         """
         linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
         
-        # SVG do LinkedIn em formato inline (ícone oficial)
-        linkedin_svg = '''
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-        </svg>
-        '''
-        
         st.sidebar.markdown(
             f"""
-            <div class="sidebar-linkedin-container">
-                <a href="{linkedin_url}" target="_blank" class="sidebar-linkedin-link">
-                    <div class="sidebar-linkedin-icon-wrapper">
-                        {linkedin_svg}
-                    </div>
-                    <div class="sidebar-linkedin-name">Rodrigo Aiôsa</div>
-                    <div class="sidebar-linkedin-handle">linkedin.com/in/rodrigoaiosa</div>
-                </a>
-            </div>
-            <style>
-                /* Container do LinkedIn */
-                .sidebar-linkedin-container {{
-                    text-align: center;
-                    padding: 16px 0 8px 0;
-                    margin-top: 8px;
-                    border-top: 1px solid rgba(255, 255, 255, 0.08);
-                }}
-                
-                /* Link principal */
-                .sidebar-linkedin-link {{
+            <div style="
+                text-align: center; 
+                padding: 16px 0 8px 0;
+                margin-top: 8px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            ">
+                <a href="{linkedin_url}" target="_blank" style="
                     text-decoration: none;
                     display: inline-block;
                     transition: all 0.3s ease;
                     opacity: 0.7;
-                    cursor: pointer;
-                }}
-                
-                .sidebar-linkedin-link:hover {{
-                    opacity: 1 !important;
-                }}
-                
-                /* Ícone do LinkedIn */
-                .sidebar-linkedin-icon-wrapper {{
-                    width: 52px;
-                    height: 52px;
-                    margin: 0 auto 8px auto;
-                    background: #0A66C2;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    color: white;
-                }}
-                
-                .sidebar-linkedin-link:hover .sidebar-linkedin-icon-wrapper {{
-                    transform: scale(1.12);
-                    box-shadow: 0 6px 24px rgba(10, 102, 194, 0.5);
-                }}
-                
-                .sidebar-linkedin-icon-wrapper svg {{
-                    width: 28px;
-                    height: 28px;
-                    fill: white;
-                }}
-                
-                /* Nome */
-                .sidebar-linkedin-name {{
-                    color: #EAF2EE;
-                    font-size: 14px;
-                    font-weight: 600;
-                    letter-spacing: 0.3px;
-                    transition: all 0.3s ease;
-                }}
-                
-                .sidebar-linkedin-link:hover .sidebar-linkedin-name {{
-                    color: #FFFFFF;
-                }}
-                
-                /* Handle do LinkedIn */
-                .sidebar-linkedin-handle {{
-                    color: #EAF2EE;
-                    font-size: 11px;
-                    opacity: 0.5;
-                    margin-top: 3px;
-                    transition: all 0.3s ease;
-                    letter-spacing: 0.2px;
-                }}
-                
-                .sidebar-linkedin-link:hover .sidebar-linkedin-handle {{
-                    opacity: 0.8;
-                }}
-                
-                /* Animações */
-                @keyframes pulse-glow {{
-                    0% {{ box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.3); }}
-                    70% {{ box-shadow: 0 0 0 12px rgba(10, 102, 194, 0); }}
-                    100% {{ box-shadow: 0 0 0 0 rgba(10, 102, 194, 0); }}
-                }}
-            </style>
+                ">
+                    <div style="
+                        width: 52px;
+                        height: 52px;
+                        margin: 0 auto 8px auto;
+                        background: #0A66C2;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: all 0.4s ease;
+                        color: white;
+                        font-size: 28px;
+                        font-weight: 700;
+                        font-family: 'Helvetica', 'Arial', sans-serif;
+                    ">
+                        in
+                    </div>
+                    <div style="
+                        color: #EAF2EE;
+                        font-size: 14px;
+                        font-weight: 600;
+                        letter-spacing: 0.3px;
+                    ">
+                        Rodrigo Aiôsa
+                    </div>
+                    <div style="
+                        color: #EAF2EE;
+                        font-size: 11px;
+                        opacity: 0.5;
+                        margin-top: 3px;
+                        letter-spacing: 0.2px;
+                    ">
+                        linkedin.com/in/rodrigoaiosa
+                    </div>
+                </a>
+            </div>
             """,
             unsafe_allow_html=True
         )
@@ -364,7 +304,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return "N2"
         else:
-            return "N1"  # BRASIL (padrão)
+            return "N1"
     
     def _determinar_codigo(self) -> int:
         """Determina o código IBGE baseado nas seleções"""
@@ -375,7 +315,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.id
         else:
-            return 1  # Brasil (código 1)
+            return 1
     
     def _get_breadcrumb(self) -> str:
         """Monta o breadcrumb para display"""
@@ -388,7 +328,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return f"Região {self.regiao_selecionada.nome}"
         else:
-            return "Visão nacional"  # Padrão
+            return "Visão nacional"
     
     def _get_nome_local(self) -> str:
         """Retorna o nome da localidade selecionada"""
@@ -399,7 +339,7 @@ class SidebarFilters:
         elif self.regiao_selecionada:
             return self.regiao_selecionada.nome
         else:
-            return "Brasil"  # Padrão
+            return "Brasil"
 
 
 # Instância global
