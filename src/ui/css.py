@@ -45,8 +45,10 @@ section[data-testid="stSidebar"] {
     background: var(--primary-dark);
 }
 
-section[data-testid="stSidebar"] * { 
-    color: #EAF2EE !important; 
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] .stAlert {
+    color: #EAF2EE !important;
 }
 
 /* Labels dos selects na sidebar */
@@ -56,6 +58,7 @@ section[data-testid="stSidebar"] .stSelectbox label {
     text-transform: uppercase; 
     font-size: 0.75rem; 
     opacity: .85; 
+    color: #EAF2EE !important;
 }
 
 /* Select boxes na sidebar */
@@ -81,6 +84,7 @@ section[data-testid="stSidebar"] h3 {
 section[data-testid="stSidebar"] .caption {
     opacity: 0.7;
     font-size: 0.8rem;
+    color: #EAF2EE !important;
 }
 
 /* ========================================
@@ -131,81 +135,35 @@ section[data-testid="stSidebar"] .stDownloadButton button:active {
     transform: translateY(0px);
 }
 
-/* Export section divider */
-.sidebar-export-divider {
-    border-top: 1px solid rgba(255,255,255,0.1);
-    margin: 1rem 0;
+/* ========================================
+   WARNINGS E INFOS NA SIDEBAR
+   ======================================== */
+section[data-testid="stSidebar"] .stAlert {
+    background: rgba(201, 150, 46, 0.15) !important;
+    border-color: var(--gold) !important;
+    border-radius: 8px !important;
+    padding: 0.8rem !important;
+}
+
+section[data-testid="stSidebar"] .stAlert .stAlertIcon {
+    color: var(--gold) !important;
 }
 
 /* ========================================
-   LINKEDIN FOOTER NA SIDEBAR
+   EXPANDER NA SIDEBAR
    ======================================== */
-.sidebar-linkedin-container {
-    text-align: center;
-    padding: 16px 0 8px 0;
-    margin-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.sidebar-linkedin-link {
-    text-decoration: none;
-    display: inline-block;
-    transition: all 0.3s ease;
-    opacity: 0.7;
-    cursor: pointer;
-}
-
-.sidebar-linkedin-link:hover {
-    opacity: 1 !important;
-}
-
-.sidebar-linkedin-icon-wrapper {
-    width: 52px;
-    height: 52px;
-    margin: 0 auto 8px auto;
-    background: #0A66C2;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    color: white;
-}
-
-.sidebar-linkedin-link:hover .sidebar-linkedin-icon-wrapper {
-    transform: scale(1.12);
-    box-shadow: 0 6px 24px rgba(10, 102, 194, 0.5);
-}
-
-.sidebar-linkedin-icon-wrapper svg {
-    width: 28px;
-    height: 28px;
-    fill: white;
-}
-
-.sidebar-linkedin-name {
-    color: #EAF2EE;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    transition: all 0.3s ease;
-}
-
-.sidebar-linkedin-link:hover .sidebar-linkedin-name {
-    color: #FFFFFF;
-}
-
-.sidebar-linkedin-handle {
-    color: #EAF2EE;
-    font-size: 11px;
-    opacity: 0.5;
-    margin-top: 3px;
-    transition: all 0.3s ease;
-    letter-spacing: 0.2px;
-}
-
-.sidebar-linkedin-link:hover .sidebar-linkedin-handle {
+section[data-testid="stSidebar"] .streamlit-expanderHeader {
+    color: #EAF2EE !important;
     opacity: 0.8;
+    font-size: 0.85rem;
+}
+
+section[data-testid="stSidebar"] .streamlit-expanderHeader:hover {
+    opacity: 1;
+}
+
+section[data-testid="stSidebar"] .streamlit-expanderContent {
+    color: #EAF2EE !important;
 }
 
 /* ========================================
@@ -347,12 +305,6 @@ section[data-testid="stSidebar"] .stDownloadButton button:active {
     }
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
 /* ========================================
    FOLIUM MAP CONTAINER
    ======================================== */
@@ -371,49 +323,8 @@ section[data-testid="stSidebar"] .stDownloadButton button:active {
 }
 
 /* ========================================
-   WARNINGS E INFOS NA SIDEBAR
-   ======================================== */
-section[data-testid="stSidebar"] .stAlert {
-    background: rgba(201, 150, 46, 0.15) !important;
-    border-color: var(--gold) !important;
-    border-radius: 8px !important;
-    padding: 0.8rem !important;
-}
-
-section[data-testid="stSidebar"] .stAlert .stAlertIcon {
-    color: var(--gold) !important;
-}
-
-section[data-testid="stSidebar"] .stAlert .stMarkdown {
-    color: #EAF2EE !important;
-}
-
-/* ========================================
-   EXPANDER NA SIDEBAR
-   ======================================== */
-section[data-testid="stSidebar"] .streamlit-expanderHeader {
-    color: #EAF2EE !important;
-    opacity: 0.8;
-    font-size: 0.85rem;
-}
-
-section[data-testid="stSidebar"] .streamlit-expanderHeader:hover {
-    opacity: 1;
-}
-
-section[data-testid="stSidebar"] .streamlit-expanderContent {
-    color: #EAF2EE !important;
-}
-
-/* ========================================
    RESPONSIVIDADE
    ======================================== */
-@media (max-width: 900px) { 
-    .card-grid { 
-        grid-template-columns: repeat(2, 1fr); 
-    }
-}
-
 @media (max-width: 600px) {
     .hero {
         padding: 1.8rem 1.5rem;
