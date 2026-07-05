@@ -14,10 +14,12 @@ from src.config.settings import MAP_HEIGHT
 def render_population_map(
     dados_mapa: List[DadosMapa],
     ranking_data: List[RankingItem],
-    titulo: str = "🗺️ Mapa: população por estado"
+    titulo: str = "🗺️ Mapa: população por estado",
+    municipio_selecionado: Optional[str] = None,
+    estado_selecionado: Optional[str] = None
 ):
     """
-    Renderiza mapa de população por estado
+    Renderiza mapa de população por estado com destaque para município selecionado
     """
     st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
     
@@ -25,8 +27,12 @@ def render_population_map(
         st.info("Não foi possível carregar os dados para o mapa.")
         return
     
-    # Criar mapa
-    mapa = mapas_service.criar_mapa_populacao(dados_mapa)
+    # Criar mapa com destaque para município/estado
+    mapa = mapas_service.criar_mapa_populacao(
+        dados_mapa,
+        municipio_selecionado=municipio_selecionado,
+        estado_selecionado=estado_selecionado
+    )
     
     if mapa:
         # Container estilizado
@@ -35,7 +41,7 @@ def render_population_map(
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Legenda
-        col1, col2 = st.columns([1, 3])
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col1:
             st.metric("Total de estados", len(dados_mapa))
         with col2:
@@ -47,6 +53,11 @@ def render_population_map(
                     f"Maior: {max_item.nome} ({fmt_int(max_item.populacao)} hab.) | "
                     f"Menor: {min_item.nome} ({fmt_int(min_item.populacao)} hab.)"
                 )
+        with col3:
+            if municipio_selecionado:
+                st.caption(f"📍 **Município selecionado:** {municipio_selecionado}")
+            elif estado_selecionado:
+                st.caption(f"📍 **Estado selecionado:** {estado_selecionado}")
     else:
         st.warning("Não foi possível gerar o mapa.")
 
