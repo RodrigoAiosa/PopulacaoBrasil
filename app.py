@@ -184,4 +184,19 @@ def main():
     
     # Título do mapa dinâmico
     if selecoes["regiao"]:
-        titulo_mapa = f"🗺️ M
+        titulo_mapa = f"🗺️ Mapa: população por estado - Região {selecoes['regiao'].nome}"
+    else:
+        titulo_mapa = "🗺️ Mapa: população por estado - Brasil"
+    
+    render_population_map(dados_mapa, ranking_mapa, titulo_mapa)
+    
+    # Rodapé
+    st.caption(UI_TEXTS["source"])
+    
+    # Mostrar status do modo offline
+    if modo_offline:
+        st.info("📡 **Modo Offline Ativo** - Dados limitados disponíveis.")
+
+
+if __name__ == "__main__":
+    main()
