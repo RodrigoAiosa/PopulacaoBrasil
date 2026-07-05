@@ -66,6 +66,8 @@ class IndicadorDemografico:
     total_municipios: Optional[int] = None
     pib_per_capita: Optional[float] = None
     pib_total: Optional[float] = None
+    idhm: Optional[float] = None
+    idhm_ano: Optional[str] = None
     
     @property
     def populacao_formatada(self) -> str:
@@ -103,6 +105,28 @@ class IndicadorDemografico:
             return f"R$ {valor / 1_000_000:.2f} mi"
         else:
             return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    @property
+    def idhm_formatado(self) -> str:
+        if self.idhm is None:
+            return "—"
+        return f"{self.idhm:.3f}".replace(".", ",")
+
+    @property
+    def idhm_faixa(self) -> str:
+        """Classificação por faixa de desenvolvimento humano (padrão PNUD/Atlas Brasil)"""
+        if self.idhm is None:
+            return ""
+        if self.idhm >= 0.800:
+            return "Muito alto"
+        elif self.idhm >= 0.700:
+            return "Alto"
+        elif self.idhm >= 0.600:
+            return "Médio"
+        elif self.idhm >= 0.500:
+            return "Baixo"
+        else:
+            return "Muito baixo"
 
 
 @dataclass
