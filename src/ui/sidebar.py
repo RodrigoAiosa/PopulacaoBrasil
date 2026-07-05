@@ -46,7 +46,7 @@ class SidebarFilters:
             self._connection_error = True
             st.sidebar.warning(f"⚠️ Erro ao conectar com a API: {str(e)[:100]}...")
         
-        # Seletor de região - INICIANDO COM "TODAS AS REGIÕES"
+        # Seletor de região
         regiao_nomes = [FILTER_OPTIONS["todas_regioes"]] + [r.nome for r in self.regioes]
         regiao_nome_sel = st.sidebar.selectbox(
             "Região", 
@@ -54,21 +54,19 @@ class SidebarFilters:
             key="regiao_select"
         )
         
-        # Verificar se a região mudou
         nova_regiao = None
         if regiao_nome_sel != FILTER_OPTIONS["todas_regioes"]:
             nova_regiao = next(
                 r for r in self.regioes if r.nome == regiao_nome_sel
             )
         
-        # Se a região mudou, resetar estado e município
         if self.regiao_selecionada != nova_regiao:
             self.regiao_selecionada = nova_regiao
             self.estado_selecionado = None
             self.municipio_selecionado = None
             st.rerun()
         
-        # Seletor de estado (atualizado com base na região)
+        # Seletor de estado
         try:
             self.estados = localidades_service.get_estados(
                 self.regiao_selecionada.id if self.regiao_selecionada else None
@@ -92,7 +90,6 @@ class SidebarFilters:
             idx = estado_labels.index(estado_label_sel)
             novo_estado = self.estados[idx]
         
-        # Se o estado mudou, resetar município
         if self.estado_selecionado != novo_estado:
             self.estado_selecionado = novo_estado
             self.municipio_selecionado = None
@@ -131,14 +128,12 @@ class SidebarFilters:
             )
             self.municipio_selecionado = None
         
-        # ==================== BOTÃO DE EXPORTAÇÃO ====================
+        # Botão de exportação
         st.sidebar.markdown("---")
         self._render_export_button()
-        # ============================================================
         
-        # ==================== LINKEDIN RODAPÉ ====================
+        # LinkedIn rodapé
         self._render_linkedin_footer()
-        # ============================================================
         
         # Fonte dos dados
         st.sidebar.markdown("---")
@@ -159,9 +154,7 @@ class SidebarFilters:
         }
     
     def _render_export_button(self):
-        """
-        Renderiza o botão de exportação na sidebar.
-        """
+        """Renderiza o botão de exportação na sidebar."""
         st.sidebar.markdown("### 📊 Exportar Dados")
         st.sidebar.caption("Baixe os dados em CSV")
         
@@ -236,9 +229,7 @@ class SidebarFilters:
             st.caption(f"📊 {len(df):,} registros")
     
     def _render_linkedin_footer(self):
-        """
-        Renderiza o rodapé com logo do LinkedIn centralizado
-        """
+        """Renderiza o rodapé com logo do LinkedIn centralizado"""
         linkedin_url = "https://www.linkedin.com/in/rodrigoaiosa/"
         
         st.sidebar.markdown(
@@ -278,7 +269,7 @@ class SidebarFilters:
                         font-weight: 600;
                         letter-spacing: 0.3px;
                     ">
-                        Rodrigo Aiosa
+                        Rodrigo Aiôsa
                     </div>
                     <div style="
                         color: #EAF2EE;
