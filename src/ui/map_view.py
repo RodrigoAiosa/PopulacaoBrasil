@@ -24,7 +24,7 @@ def render_population_map(
     st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
     
     if not dados_mapa:
-        st.info("Não foi possível carregar os dados para o mapa.")
+        # Não exibe nada se não houver dados
         return
     
     # Criar mapa com destaque para município/estado
@@ -59,7 +59,8 @@ def render_population_map(
             elif estado_selecionado:
                 st.caption(f"📍 **Estado selecionado:** {estado_selecionado}")
     else:
-        st.warning("Não foi possível gerar o mapa.")
+        # Não exibe nada se não foi possível gerar o mapa
+        return
 
 
 def render_location_map(
@@ -75,7 +76,7 @@ def render_location_map(
     st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
     
     if not dados:
-        st.info("Sem dados para exibir no mapa.")
+        # Não exibe nada se não houver dados
         return
     
     mapa = mapas_service.criar_mapa_clusters(
@@ -90,4 +91,5 @@ def render_location_map(
         st_folium(mapa, use_container_width=True, height=MAP_HEIGHT, returned_objects=[])
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.warning("Não foi possível gerar o mapa.")
+        # Não exibe nada se não foi possível gerar o mapa
+        return
