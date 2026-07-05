@@ -140,42 +140,72 @@ section[data-testid="stSidebar"] .stDownloadButton button:active {
 /* ========================================
    LINKEDIN FOOTER NA SIDEBAR
    ======================================== */
-.sidebar-linkedin-footer {
+.sidebar-linkedin-container {
     text-align: center;
-    padding: 15px 0 10px 0;
-    margin-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 0 8px 0;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.sidebar-linkedin-footer a {
-    color: #EAF2EE !important;
-    text-decoration: none !important;
-    font-size: 13px;
-    opacity: 0.7;
-    transition: all 0.3s ease;
+.sidebar-linkedin-link {
+    text-decoration: none;
     display: inline-block;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    cursor: pointer;
 }
 
-.sidebar-linkedin-footer a:hover {
-    opacity: 1;
-    color: #FFFFFF !important;
-    transform: scale(1.05);
+.sidebar-linkedin-link:hover {
+    opacity: 1 !important;
 }
 
-.sidebar-linkedin-footer .linkedin-icon {
-    display: block;
-    margin: 0 auto 6px auto;
+.sidebar-linkedin-icon-wrapper {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 8px auto;
+    background: #0A66C2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    color: white;
+}
+
+.sidebar-linkedin-link:hover .sidebar-linkedin-icon-wrapper {
+    transform: scale(1.12);
+    box-shadow: 0 6px 24px rgba(10, 102, 194, 0.5);
+}
+
+.sidebar-linkedin-icon-wrapper svg {
+    width: 28px;
+    height: 28px;
+    fill: white;
+}
+
+.sidebar-linkedin-name {
+    color: #EAF2EE;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
     transition: all 0.3s ease;
 }
 
-.sidebar-linkedin-footer .linkedin-icon:hover {
-    transform: scale(1.1);
+.sidebar-linkedin-link:hover .sidebar-linkedin-name {
+    color: #FFFFFF;
 }
 
-.sidebar-linkedin-footer .linkedin-text {
-    font-size: 12px;
-    opacity: 0.6;
-    letter-spacing: 0.3px;
+.sidebar-linkedin-handle {
+    color: #EAF2EE;
+    font-size: 11px;
+    opacity: 0.5;
+    margin-top: 3px;
+    transition: all 0.3s ease;
+    letter-spacing: 0.2px;
+}
+
+.sidebar-linkedin-link:hover .sidebar-linkedin-handle {
+    opacity: 0.8;
 }
 
 /* ========================================
