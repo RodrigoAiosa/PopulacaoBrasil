@@ -50,6 +50,8 @@ class Agregados:
     """IDs dos agregados do SIDRA"""
     POPULACAO_ESTIMADA = 6579
     CENSO_AREA_DENSIDADE = 4714
+    PIB_MUNICIPIOS = 5938  # PIB dos Municípios
+    RENDA_PER_CAPITA = 5964  # Renda per capita (PIB per capita)
 
 
 @dataclass(frozen=True)
@@ -57,9 +59,17 @@ class Variaveis:
     """IDs das variáveis dos agregados"""
     POPULACAO_ESTIMADA = 9324
     
+    # PIB e Renda
+    PIB_TOTAL = 37  # PIB total (R$ 1.000)
+    PIB_PER_CAPITA = 38  # PIB per capita (R$)
+    VALOR_ADICIONADO = 39  # Valor Adicionado Bruto
+    
     # Nomes para busca dinâmica
     AREA = "Área"
     DENSIDADE = "Densidade"
+    PIB = "PIB"
+    RENDA_PER_CAPITA = "PIB per capita"
+    RENDA = "Renda"
 
 
 @dataclass(frozen=True)
