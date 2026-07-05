@@ -45,9 +45,20 @@ def render_indicators_cards(
         )
     
     with col4:
-        render_card(
-            card4_label,
-            card4_value,
-            card4_unit,
-            card4_foot
-        )
+        # Verifica se temos dados de renda
+        if indicadores.pib_per_capita is not None:
+            # Mostra renda per capita no 4º card
+            render_card(
+                "Renda per capita",
+                indicadores.pib_per_capita_formatado,
+                "",
+                "PIB per capita (IBGE)"
+            )
+        else:
+            # Fallback para o card original
+            render_card(
+                card4_label,
+                card4_value,
+                card4_unit,
+                card4_foot
+            )
