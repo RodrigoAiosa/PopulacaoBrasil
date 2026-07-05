@@ -11,6 +11,7 @@ from src.api.endpoints import (
 )
 from src.models.schemas import IndicadorDemografico, RankingItem
 from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
+from src.services.idhm import idhm_service
 
 
 @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
@@ -444,12 +445,24 @@ class AgregadosService:
                 if pib_total and populacao and populacao > 0:
                     pib_per_capita = pib_total / populacao
         
+        # IDHM (apenas Estado e Município — não é dado do IBGE/SIDRA, ver
+        # src/services/idhm.py para a fonte e as limitações)
+        idhm = None
+        idhm_ano = None
+        if nivel in [NiveisTerritoriais.MUNICIPIO, NiveisTerritoriais.ESTADO]:
+            idhm_info = idhm_service.get_idhm(nivel, codigo)
+            if idhm_info:
+                idhm = idhm_info["valor"]
+                idhm_ano = idhm_info["ano"]
+
         return IndicadorDemografico(
             populacao=populacao,
             area=area,
             densidade=densidade,
             pib_per_capita=pib_per_capita,
-            pib_total=pib_total
+            pib_total=pib_total,
+            idhm=idhm,
+            idhm_ano=idhm_ano
         )
     
     @staticmethod
