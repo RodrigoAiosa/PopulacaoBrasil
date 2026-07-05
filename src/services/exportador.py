@@ -18,32 +18,34 @@ class ExportadorService:
     def gerar_dados_todos_municipios() -> pd.DataFrame:
         """
         Gera dados de TODOS os municípios do Brasil
+
+        Performance: busca a população de TODOS os municípios em UMA ÚNICA
+        requisição HTTP ("N6[all]"), em vez de uma requisição por município
+        (o Brasil tem mais de 5.500 municípios).
         """
         # Buscar todos os estados
         estados = localidades_service.get_estados()
         
         if not estados:
             return pd.DataFrame()
-        
+
+        # Uma única chamada para a população de todos os municípios do país
+        populacoes = agregados_service.get_valores_populacao_lote(
+            f"{NiveisTerritoriais.MUNICIPIO}[all]"
+        )
+
         # Buscar dados de todos os municípios
         todos_dados = []
-        total_geral = 0
-        
+
         for estado in estados:
             municipios = localidades_service.get_municipios(estado.id)
             
             if not municipios:
                 continue
             
-            # Buscar população de cada município
             dados_estado = []
             for municipio in municipios:
-                pop = agregados_service.get_valor_agregado(
-                    agregado_id=6579,
-                    variavel_id=9324,
-                    nivel=NiveisTerritoriais.MUNICIPIO,
-                    codigo=municipio.id
-                )
+                pop = populacoes.get(municipio.id)
                 
                 if pop is not None:
                     dados_estado.append({
@@ -55,7 +57,6 @@ class ExportadorService:
                         "municipio_nome": municipio.nome,
                         "populacao": pop
                     })
-                    total_geral += pop
             
             if dados_estado:
                 todos_dados.extend(dados_estado)
@@ -111,6 +112,10 @@ class ExportadorService:
     def gerar_dados_municipios_estado(estado_id: int) -> pd.DataFrame:
         """
         Gera dados completos dos municípios de um estado com percentuais
+
+        Performance: busca a população de TODOS os municípios do estado em
+        UMA ÚNICA requisição HTTP ("N6[N3[estado_id]]"), em vez de uma
+        requisição por município.
         """
         # Buscar dados
         municipios = localidades_service.get_municipios(estado_id)
@@ -118,16 +123,15 @@ class ExportadorService:
         
         if not municipios or not estado:
             return pd.DataFrame()
-        
-        # Buscar população de cada município
+
+        # Uma única chamada para a população de todos os municípios do estado
+        populacoes = agregados_service.get_valores_populacao_lote(
+            f"{NiveisTerritoriais.MUNICIPIO}[{NiveisTerritoriais.ESTADO}[{estado_id}]]"
+        )
+
         dados = []
         for municipio in municipios:
-            pop = agregados_service.get_valor_agregado(
-                agregado_id=6579,
-                variavel_id=9324,
-                nivel=NiveisTerritoriais.MUNICIPIO,
-                codigo=municipio.id
-            )
+            pop = populacoes.get(municipio.id)
             
             if pop is not None:
                 dados.append({
@@ -202,22 +206,25 @@ class ExportadorService:
     def gerar_dados_estados(regiao_id: Optional[int] = None) -> pd.DataFrame:
         """
         Gera dados dos estados (com ou sem filtro de região)
+
+        Performance: busca a população de todos os estados relevantes em
+        UMA ÚNICA requisição HTTP, em vez de uma requisição por estado.
         """
         # Buscar estados
         estados = localidades_service.get_estados(regiao_id)
         
         if not estados:
             return pd.DataFrame()
-        
-        # Buscar população de cada estado
+
+        # Uma única chamada para a população de todos os estados
+        query = f"{NiveisTerritoriais.REGIAO}[{regiao_id}]" if regiao_id else "all"
+        populacoes = agregados_service.get_valores_populacao_lote(
+            f"{NiveisTerritoriais.ESTADO}[{query}]"
+        )
+
         dados = []
         for estado in estados:
-            pop = agregados_service.get_valor_agregado(
-                agregado_id=6579,
-                variavel_id=9324,
-                nivel=NiveisTerritoriais.ESTADO,
-                codigo=estado.id
-            )
+            pop = populacoes.get(estado.id)
             
             if pop is not None:
                 dados.append({
