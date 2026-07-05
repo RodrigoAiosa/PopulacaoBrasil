@@ -32,16 +32,22 @@ def render_card(
     color: Optional[str] = None
 ):
     """
-    Renderiza um card de indicador
+    Renderiza um card de indicador com valor e unidade na mesma linha
     """
     color_style = f"color: {color};" if color else ""
+    
+    # Se o valor for "—", não mostra unidade
+    if value == "—" or not value:
+        value_html = f'<span class="card-value" style="{color_style}">—</span>'
+    else:
+        # Monta o valor com unidade na mesma linha
+        unit_html = f'<span class="card-unit">{unit}</span>' if unit else ""
+        value_html = f'<span class="card-value" style="{color_style}">{value}</span>{unit_html}'
     
     st.markdown(
         f"""<div class="card">
                 <div class="card-label">{label}</div>
-                <div class="card-value" style="{color_style}">
-                    {value}<span class="card-unit">{unit}</span>
-                </div>
+                <div class="card-value-wrapper">{value_html}</div>
                 <div class="card-foot">{foot}</div>
             </div>""",
         unsafe_allow_html=True,
