@@ -45,27 +45,48 @@ section[data-testid="stSidebar"] {
     background: var(--primary-dark);
 }
 
-section[data-testid="stSidebar"] .stMarkdown,
-section[data-testid="stSidebar"] .stCaption,
-section[data-testid="stSidebar"] .stAlert {
-    color: #EAF2EE !important;
-}
-
-/* Labels dos selects na sidebar */
+/* Cor do texto dos comboboxes na sidebar - COR BRANCA */
 section[data-testid="stSidebar"] .stSelectbox label { 
     font-weight: 600; 
     letter-spacing: .03em; 
     text-transform: uppercase; 
     font-size: 0.75rem; 
     opacity: .85; 
-    color: #EAF2EE !important;
+    color: #FFFFFF !important;
 }
 
-/* Select boxes na sidebar */
+/* Texto do select (o valor selecionado) */
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.25);
     border-radius: 8px;
+    color: #FFFFFF !important;
+}
+
+/* Texto dentro do input do select */
+section[data-testid="stSidebar"] div[data-baseweb="select"] input {
+    color: #FFFFFF !important;
+}
+
+/* Texto do placeholder do select */
+section[data-testid="stSidebar"] div[data-baseweb="select"] input::placeholder {
+    color: rgba(255,255,255,0.6) !important;
+}
+
+/* Texto dos itens do dropdown (opções) */
+section[data-testid="stSidebar"] div[data-baseweb="select"] ul li {
+    color: #12241F !important;
+}
+
+/* Texto dos itens do dropdown quando hover */
+section[data-testid="stSidebar"] div[data-baseweb="select"] ul li:hover {
+    background: rgba(31, 111, 92, 0.1) !important;
+}
+
+/* Texto dos itens selecionados no dropdown */
+section[data-testid="stSidebar"] div[data-baseweb="select"] ul li[aria-selected="true"] {
+    background: rgba(31, 111, 92, 0.15) !important;
+    color: #12241F !important;
 }
 
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div:hover {
@@ -85,6 +106,18 @@ section[data-testid="stSidebar"] .caption {
     opacity: 0.7;
     font-size: 0.8rem;
     color: #EAF2EE !important;
+}
+
+/* Textos gerais na sidebar */
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] .stAlert {
+    color: #EAF2EE !important;
+}
+
+/* Selectbox desabilitado (quando não há estado selecionado) */
+section[data-testid="stSidebar"] .stSelectbox[disabled] input {
+    color: rgba(255,255,255,0.5) !important;
 }
 
 /* ========================================
