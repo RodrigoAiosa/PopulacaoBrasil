@@ -2,7 +2,6 @@
 Componente de botão para exportação de dados
 """
 import streamlit as st
-import pandas as pd
 from typing import Optional
 
 from src.services.exportador import exportador_service
@@ -22,28 +21,24 @@ def render_export_button(
         # Nível município - dados dos municípios do estado
         df = exportador_service.gerar_dados_municipios_estado(estado.id)
         nome_arquivo = f"dados_municipios_{estado.sigla.lower()}"
-        label = f"📥 Baixar dados dos municípios de {estado.sigla}"
         descricao = f"Municípios do estado {estado.nome} ({len(df)} registros)"
     
     elif nivel == "N3" and estado:
         # Nível estado - dados do estado
         df = exportador_service.gerar_dados_estados(regiao.id if regiao else None)
         nome_arquivo = f"dados_estado_{estado.sigla.lower()}"
-        label = f"📥 Baixar dados do estado {estado.sigla}"
         descricao = f"Dados do estado {estado.nome}"
     
     elif nivel == "N2" and regiao:
         # Nível região - dados dos estados da região
         df = exportador_service.gerar_dados_estados(regiao.id)
         nome_arquivo = f"dados_regiao_{regiao.sigla.lower()}"
-        label = f"📥 Baixar dados da região {regiao.nome}"
         descricao = f"Estados da região {regiao.nome} ({len(df)} registros)"
     
     else:
         # Nível Brasil - dados de TODOS os municípios
         df = exportador_service.gerar_dados_todos_municipios()
         nome_arquivo = "dados_todos_municipios_brasil"
-        label = "📥 Baixar dados de TODOS os municípios do Brasil"
         descricao = f"Todos os municípios do Brasil ({len(df)} registros)"
     
     # Verificar se há dados
@@ -73,7 +68,6 @@ def render_export_button(
         with col2:
             # Botão Excel (com fallback)
             try:
-                from openpyxl.workbook import Workbook
                 excel_data = exportador_service.exportar_para_excel(df)
                 st.download_button(
                     label="📊 Baixar Excel",
@@ -85,8 +79,8 @@ def render_export_button(
                 )
             except ImportError:
                 st.warning("⚠️ Biblioteca 'openpyxl' não encontrada. Use o formato CSV.")
-            except Exception as e:
-                st.warning(f"⚠️ Exportação para Excel indisponível. Use o formato CSV.")
+            except Exception:
+                st.warning("⚠️ Exportação para Excel indisponível. Use o formato CSV.")
         
         with col3:
             # Informação de quantos registros

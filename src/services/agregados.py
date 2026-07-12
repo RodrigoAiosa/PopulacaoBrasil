@@ -3,39 +3,28 @@ Serviços para consulta de agregados do SIDRA
 """
 from typing import List, Tuple, Optional, Dict, Any
 import streamlit as st
-import requests
 
 from src.api.endpoints import (
     APIEndpoints, Agregados, Variaveis, NiveisTerritoriais,
     SIDRA_INVALID_SYMBOLS, PIB_PERIODOS,
 )
+from src.api.http_client import get_json
 from src.models.schemas import IndicadorDemografico, RankingItem
-from src.config.settings import CACHE_TTL_AGREGADOS, API_TIMEOUT
+from src.config.settings import CACHE_TTL_AGREGADOS
 from src.services.idhm import idhm_service
 
 
 @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
 def _fetch_metadados(agregado_id: int) -> Optional[Dict[str, Any]]:
     """Função cacheada para buscar metadados do agregado"""
-    try:
-        url = APIEndpoints.get_agregado_metadados_url(agregado_id)
-        resp = requests.get(url, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    return get_json(APIEndpoints.get_agregado_metadados_url(agregado_id))
 
 
 @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
 def _fetch_valor_agregado(agregado_id: int, variavel_id: int, localidade: str, periodo: str = "-1") -> Optional[Any]:
     """Função cacheada para buscar valor do agregado"""
-    try:
-        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
-        resp = requests.get(url, params={"localidades": localidade}, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
+    return get_json(url, params={"localidades": localidade})
 
 
 @st.cache_data(ttl=CACHE_TTL_AGREGADOS, show_spinner=False)
@@ -46,13 +35,8 @@ def _fetch_valores_agregado_lote(agregado_id: int, variavel_id: int, localidade_
     "N3[all]" (todos os estados), "N6[N3[35]]" (municípios de SP),
     "N3[11,12,13]" (estados específicos).
     """
-    try:
-        url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
-        resp = requests.get(url, params={"localidades": localidade_query}, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    url = APIEndpoints.get_agregado_valor_url(agregado_id, variavel_id, periodo)
+    return get_json(url, params={"localidades": localidade_query})
 
 
 class AgregadosService:

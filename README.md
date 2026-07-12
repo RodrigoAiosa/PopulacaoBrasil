@@ -18,8 +18,10 @@ Painel interativo construído com **Streamlit** para explorar dados demográfico
 ```
 PopulacaoBrasil/
 ├── app.py                     # Ponto de entrada da aplicação Streamlit
-├── requirements.txt           # Dependências do projeto
-├── .env                       # Variáveis de ambiente (configuráveis)
+├── requirements.txt           # Dependências de produção
+├── requirements-dev.txt       # + dependências de teste/lint (pytest, ruff)
+├── .env.example                # Modelo de variáveis de ambiente (copie para .env)
+├── tests/                     # Testes automatizados (pytest)
 └── src/
     ├── api/                   # Cliente HTTP e endpoints da API do IBGE
     │   ├── endpoints.py
@@ -74,7 +76,11 @@ pip install -r requirements.txt
 
 ### 4. Configurar variáveis de ambiente (opcional)
 
-O arquivo `.env` já vem com valores padrão. Ajuste conforme necessário:
+Copie o modelo e ajuste conforme necessário — o `.env` é local e não é versionado:
+
+```bash
+cp .env.example .env
+```
 
 ```env
 # Configurações da API
@@ -101,6 +107,16 @@ streamlit run app.py
 
 O painel abrirá automaticamente no navegador, normalmente em `http://localhost:8501`.
 
+## 🧪 Testes e qualidade de código
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q                              # roda a suíte de testes
+ruff check src app.py --select F,E9    # lint (imports mortos, erros de sintaxe)
+```
+
+O workflow em `.github/workflows/ci.yml` roda testes e lint automaticamente a cada push/PR na branch `main`.
+
 ## 🗃️ Fontes de dados
 
 Os dados são obtidos das APIs públicas do IBGE:
@@ -115,9 +131,11 @@ Os dados são obtidos das APIs públicas do IBGE:
 - [Plotly](https://plotly.com/python/) — gráficos
 - [Folium](https://python-visualization.github.io/folium/) / [streamlit-folium](https://github.com/randyzwitch/streamlit-folium) — mapas interativos
 - [Pandas](https://pandas.pydata.org/) — manipulação de dados
-- [Pydantic](https://docs.pydantic.dev/) — validação de dados/modelos
-- [Requests](https://requests.readthedocs.io/) + [Tenacity](https://tenacity.readthedocs.io/) — chamadas HTTP resilientes
+- [Requests](https://requests.readthedocs.io/) + [Tenacity](https://tenacity.readthedocs.io/) — chamadas HTTP com retentativa automática (backoff exponencial) para falhas transitórias
 - [OpenPyXL](https://openpyxl.readthedocs.io/) — exportação em Excel
+- [Pytest](https://docs.pytest.org/) + [Ruff](https://docs.astral.sh/ruff/) — testes automatizados e lint (dev)
+
+Os modelos de dados (`src/models/schemas.py`) são `dataclasses` simples, não Pydantic.
 
 ## 📄 Licença
 

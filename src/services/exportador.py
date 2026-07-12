@@ -2,9 +2,8 @@
 Serviço para exportação de dados em Excel/CSV
 """
 import pandas as pd
-from typing import List, Dict, Any, Optional
-import streamlit as st
-from io import BytesIO, StringIO
+from typing import Optional
+from io import BytesIO
 
 from src.services.localidades import localidades_service
 from src.services.agregados import agregados_service

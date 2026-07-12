@@ -1,7 +1,6 @@
 """
 Constantes gerais do projeto
 """
-from typing import Dict
 
 # Textos da UI
 UI_TEXTS = {

@@ -23,7 +23,6 @@ from src.ui.map_view import render_population_map
 from src.services.localidades import localidades_service
 from src.services.agregados import agregados_service
 from src.services.mapas import mapas_service
-from src.models.schemas import IndicadorDemografico
 from src.utils.formatters import fmt_int
 from src.utils.constants import UI_TEXTS
 from src.api.endpoints import NiveisTerritoriais
@@ -78,6 +77,21 @@ def main():
                 card4_value = f"{posicao}º" if posicao else "—"
                 card4_unit = ""
                 card4_foot = f"de {len(ranking)} municípios"
+                chart_title = f"Ranking dos municípios de {selecoes['estado'].sigla}"
+                highlight_nome = selecoes["municipio"].nome
+            else:
+                # Defensivo: o estado do município selecionado não foi encontrado
+                # na lista atual de estados (ex.: API do IBGE indisponível nesta
+                # consulta específica, retornando um conjunto de fallback
+                # diferente do usado quando a seleção foi feita). Sem este bloco,
+                # as variáveis abaixo ficariam indefinidas e o app quebraria com
+                # UnboundLocalError mais adiante — em vez disso, mostramos um
+                # estado vazio claro para o usuário.
+                ranking = []
+                card4_label = "Posição no estado"
+                card4_value = "—"
+                card4_unit = ""
+                card4_foot = "dado indisponível no momento"
                 chart_title = f"Ranking dos municípios de {selecoes['estado'].sigla}"
                 highlight_nome = selecoes["municipio"].nome
         

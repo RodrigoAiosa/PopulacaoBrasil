@@ -1,7 +1,7 @@
 """
 Funções de formatação para display
 """
-from typing import Optional, Any
+from typing import Optional
 
 
 def fmt_int(value: Optional[float]) -> str:

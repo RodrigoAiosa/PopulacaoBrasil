@@ -1,49 +1,34 @@
 """
 Serviços para consulta de localidades (Regiões, Estados, Municípios)
 """
+import logging
 from typing import List, Optional
 import streamlit as st
-import requests
 
 from src.api.endpoints import APIEndpoints
+from src.api.http_client import get_json
 from src.models.schemas import Regiao, Estado, Municipio
-from src.config.settings import CACHE_TTL_LOCALIDADES, API_TIMEOUT
+from src.config.settings import CACHE_TTL_LOCALIDADES
+
+logger = logging.getLogger("populacao_brasil")
 
 
 @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
 def _fetch_regioes() -> Optional[List[dict]]:
     """Função cacheada para buscar regiões"""
-    try:
-        url = APIEndpoints.get_regioes_url()
-        resp = requests.get(url, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    return get_json(APIEndpoints.get_regioes_url())
 
 
 @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
 def _fetch_estados(regiao_id: Optional[int] = None) -> Optional[List[dict]]:
     """Função cacheada para buscar estados"""
-    try:
-        url = APIEndpoints.get_estados_url(regiao_id)
-        resp = requests.get(url, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    return get_json(APIEndpoints.get_estados_url(regiao_id))
 
 
 @st.cache_data(ttl=CACHE_TTL_LOCALIDADES, show_spinner=False)
 def _fetch_municipios(uf_id: int) -> Optional[List[dict]]:
     """Função cacheada para buscar municípios"""
-    try:
-        url = APIEndpoints.get_municipios_url(uf_id)
-        resp = requests.get(url, timeout=API_TIMEOUT)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception:
-        return None
+    return get_json(APIEndpoints.get_municipios_url(uf_id))
 
 
 class LocalidadesService:
@@ -99,7 +84,8 @@ class LocalidadesService:
                     key=lambda r: r.nome
                 )
         except Exception as e:
-            st.warning(f"⚠️ Usando dados de fallback para regiões. Erro: {str(e)}")
+            logger.warning("Falha ao buscar regiões da API do IBGE: %s", e)
+            st.warning("⚠️ Usando dados de fallback para regiões (API do IBGE indisponível no momento).")
         
         # Fallback
         return sorted(
@@ -116,7 +102,8 @@ class LocalidadesService:
                 estados = [Estado.from_api(item) for item in data]
                 return sorted(estados, key=lambda e: e.nome)
         except Exception as e:
-            st.warning(f"⚠️ Usando dados de fallback para estados. Erro: {str(e)}")
+            logger.warning("Falha ao buscar estados da API do IBGE: %s", e)
+            st.warning("⚠️ Usando dados de fallback para estados (API do IBGE indisponível no momento).")
         
         # Fallback
         estados = [Estado.from_api(item) for item in LocalidadesService._FALLBACK_ESTADOS]
@@ -135,20 +122,24 @@ class LocalidadesService:
                     key=lambda m: m.nome
                 )
         except Exception as e:
-            st.warning(f"⚠️ Não foi possível carregar municípios. Erro: {str(e)}")
+            logger.warning("Falha ao buscar municípios (uf_id=%s) da API do IBGE: %s", uf_id, e)
+            st.warning("⚠️ Não foi possível carregar municípios (API do IBGE indisponível no momento).")
         
-        # Fallback: retorna alguns municípios conhecidos
+        # Fallback: retorna algumas capitais conhecidas, com os códigos IBGE
+        # REAIS de 7 dígitos (os códigos fictícios 1-10 usados antes quebravam
+        # qualquer busca posterior por `get_municipio_by_id` ou consulta ao
+        # SIDRA, já que esses IDs não existem de fato na base do IBGE).
         fallback_municipios = [
-            {"id": 1, "nome": "Brasília"},
-            {"id": 2, "nome": "São Paulo"},
-            {"id": 3, "nome": "Rio de Janeiro"},
-            {"id": 4, "nome": "Salvador"},
-            {"id": 5, "nome": "Fortaleza"},
-            {"id": 6, "nome": "Belo Horizonte"},
-            {"id": 7, "nome": "Curitiba"},
-            {"id": 8, "nome": "Porto Alegre"},
-            {"id": 9, "nome": "Recife"},
-            {"id": 10, "nome": "Manaus"},
+            {"id": 5300108, "nome": "Brasília"},
+            {"id": 3550308, "nome": "São Paulo"},
+            {"id": 3304557, "nome": "Rio de Janeiro"},
+            {"id": 2927408, "nome": "Salvador"},
+            {"id": 2304400, "nome": "Fortaleza"},
+            {"id": 3106200, "nome": "Belo Horizonte"},
+            {"id": 4106902, "nome": "Curitiba"},
+            {"id": 4314902, "nome": "Porto Alegre"},
+            {"id": 2611606, "nome": "Recife"},
+            {"id": 1302603, "nome": "Manaus"},
         ]
         return sorted(
             [Municipio.from_api(item) for item in fallback_municipios],

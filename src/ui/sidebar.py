@@ -2,7 +2,7 @@
 Sidebar com filtros em cascata
 """
 import streamlit as st
-from typing import Tuple, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 from src.services.localidades import localidades_service
 from src.services.exportador import exportador_service

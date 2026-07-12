@@ -1,7 +1,6 @@
 """
 Componente Hero
 """
-import streamlit as st
 from typing import Optional
 
 from src.ui.components import render_hero

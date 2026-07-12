@@ -2,7 +2,6 @@
 Serviços para operações com mapas
 """
 from typing import Dict, List, Tuple, Optional
-import streamlit as st
 import folium
 from folium.plugins import MarkerCluster
 
@@ -155,7 +154,11 @@ class MapasService:
         "Quixadá": [-4.9714, -39.0155],
         "Pacajus": [-4.1722, -38.4606],
         "Acaraú": [-2.8876, -40.1200],
-        "Cascavel": [-4.1332, -38.2412],
+        # Existe também um "Cascavel" no Paraná (ver mais abaixo); como este
+        # dicionário é uma chave única nome->coordenadas para o Brasil todo,
+        # os dois nomes colidiam e o do Paraná sobrescrevia silenciosamente
+        # este aqui. Desambiguado para não perder a cidade cearense.
+        "Cascavel (CE)": [-4.1332, -38.2412],
         "Horizonte": [-4.0998, -38.4830],
         "Limoeiro do Norte": [-5.1443, -38.0985],
         "Tauá": [-6.0027, -40.2928],

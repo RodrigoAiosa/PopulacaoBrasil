@@ -2,9 +2,8 @@
 Componentes UI reutilizáveis
 """
 import streamlit as st
-from typing import Optional, Dict, Any
+from typing import Optional
 
-from src.utils.constants import THEME_COLORS
 
 
 def inject_css(css_file: Optional[str] = None, custom_css: Optional[str] = None):
