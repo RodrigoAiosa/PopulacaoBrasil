@@ -3,6 +3,7 @@ Painel Demográfico do Brasil — dados públicos do IBGE
 Rode com: streamlit run app.py
 """
 import streamlit as st
+from esconder_selo import esconder_selo_streamlit
 
 # Configuração da página (deve ser a primeira chamada)
 st.set_page_config(
@@ -11,6 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+esconder_selo_streamlit()  # oculta os controles do Streamlit Cloud
 
 # Importações dos módulos
 from src.ui.css import get_css
