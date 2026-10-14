@@ -1,0 +1,15 @@
+# O app Streamlit (Python) não roda na Vercel; lá publicamos só o index.html,
+# os dados de data/ e a função de reserva api/ibge.js.
+app.py
+conftest.py
+esconder_selo.py
+src/
+tests/
+__pycache__/
+requirements.txt
+requirements-dev.txt
+pytest.ini
+melhorias.diff
+Mudancas.DIFF
+.env
+.streamlit/

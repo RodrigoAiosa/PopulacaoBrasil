@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Demográfico do Brasil</title>
+<meta name="description" content="População, área, densidade demográfica e PIB do Brasil por região, estado e município, com rankings e mapas. Dados públicos do IBGE.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+/* Mesma identidade do app original: verde-mata, dourado e tijolo sobre fundo claro. */
+:root {
+  --bg: #eef2ed; --surface: #ffffff; --ink: #12241f; --muted: #5b6b63; --line: #d8e0d9;
+  --primary: #1f6f5c; --primary-dark: #123a30; --gold: #c9962e; --brick: #b54b3a;
+  --side-ink: #eaf2ee;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100vh; background: linear-gradient(90deg, var(--primary-dark) 300px, var(--bg) 300px); }
+
+aside { background: var(--primary-dark); color: var(--side-ink); padding: 28px 22px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+aside h2 { font: 700 20px "Fraunces", Georgia, serif; margin: 0 0 4px; color: #fff; }
+aside .cap { font-size: 13px; opacity: .75; margin: 0 0 22px; }
+aside label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .85; margin: 16px 0 6px; }
+aside select, aside input { width: 100%; font: 500 14px "IBM Plex Sans", sans-serif; color: var(--ink); background: #fff; border: 0; border-radius: 10px; padding: 10px 12px; min-height: 42px; }
+aside select:disabled { opacity: .5; }
+aside .hr { border-top: 1px solid rgba(255,255,255,.14); margin: 24px 0 16px; }
+aside .btn { width: 100%; margin-top: 10px; }
+aside .note { font-size: 12px; opacity: .7; margin-top: 18px; }
+aside a { color: #fff; }
+
+main { padding: 32px clamp(16px, 3vw, 40px) 48px; min-width: 0; }
+.hero { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; border-radius: 20px; padding: 28px clamp(20px, 3vw, 36px); position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(201,150,46,.35), transparent 70%); }
+.crumb { font: 500 12px "IBM Plex Mono", monospace; letter-spacing: .04em; opacity: .8; text-transform: uppercase; }
+.big { font: 700 clamp(40px, 7vw, 72px)/1 "Fraunces", Georgia, serif; margin: 10px 0 6px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.big small { font: 500 15px "IBM Plex Sans", sans-serif; opacity: .85; letter-spacing: 0; display: block; margin-top: 8px; }
+.hero p { margin: 14px 0 0; max-width: 640px; opacity: .85; font-size: 14px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.card .k { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.card .v { font: 700 26px/1.15 "Fraunces", Georgia, serif; margin-top: 6px; font-variant-numeric: tabular-nums; word-break: break-word; }
+.card .v span { font: 500 13px "IBM Plex Sans", sans-serif; color: var(--muted); margin-left: 4px; }
+.card .f { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; min-width: 0; }
+.panel h3 { font: 700 18px "Fraunces", Georgia, serif; margin: 0 0 4px; }
+.panel .sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.bars { display: grid; gap: 6px; }
+.bar { display: grid; grid-template-columns: minmax(90px, 160px) 1fr; gap: 10px; align-items: center; font-size: 13px; cursor: pointer; border-radius: 6px; padding: 2px 4px; }
+.bar:hover { background: #f3f6f3; }
+.bar .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .t { display: flex; align-items: center; gap: 8px; }
+.bar .t i { display: block; height: 18px; border-radius: 4px; background: var(--primary); min-width: 2px; }
+.bar.hl .t i { background: var(--gold); }
+.bar .t b { font: 500 12px "IBM Plex Mono", monospace; color: var(--muted); white-space: nowrap; }
+.search { width: 100%; font: 400 14px "IBM Plex Sans", sans-serif; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; background: var(--bg); }
+.table-wrap { overflow: auto; max-height: 560px; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: #f5f8f5; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: #f3f6f3; }
+tr.hl td { background: rgba(201,150,46,.16) !important; font-weight: 600; }
+
+#map { width: 100%; height: auto; display: block; }
+#map path { stroke: #fff; stroke-width: .6; cursor: pointer; }
+#map path.dim { opacity: .25; }
+#map path.sel { stroke: var(--gold); stroke-width: 2.4; }
+#map path:hover { stroke: var(--ink); stroke-width: 1.4; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend .g { flex: 1; height: 10px; border-radius: 99px; background: linear-gradient(90deg, #e3efe9, #8cbcab, #1f6f5c, #123a30); }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--primary-dark); color: #fff; border-radius: 10px; padding: 9px 12px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.25); opacity: 0; transition: opacity .1s; max-width: 260px; }
+.btn { appearance: none; border: 0; border-radius: 10px; min-height: 40px; padding: 0 16px; font: 600 14px "IBM Plex Sans", sans-serif; cursor: pointer; background: var(--gold); color: #1d1406; }
+.btn:hover { filter: brightness(1.05); }
+.btn:disabled { opacity: .55; cursor: wait; }
+.btn.line { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.loading { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 30px 0; }
+.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: s .8s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+.warn { background: #fdf5e6; border: 1px solid #ecd9ad; color: #6b4e12; border-radius: 12px; padding: 10px 14px; font-size: 13px; margin-top: 14px; }
+footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+footer a { color: var(--primary); }
+select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; background: var(--bg); }
+  aside { position: static; height: auto; padding: 20px 16px; }
+  aside .filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
+  aside .hr, aside .note { display: none; }
+}
+@media (max-width: 560px) { aside .filters { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <h2>🗺️ Filtros</h2>
+    <p class="cap">Região, estado e município (cidade) em cascata.</p>
+    <div class="filters">
+      <div><label for="selRegiao">Região</label><select id="selRegiao"><option value="">Brasil — todas as regiões</option></select></div>
+      <div><label for="selEstado">Estado</label><select id="selEstado"><option value="">Todos os estados da seleção</option></select></div>
+      <div><label for="selMun">Município</label><select id="selMun" disabled><option value="">Todos os municípios do estado</option></select></div>
+    </div>
+    <div class="hr"></div>
+    <label>Exportar dados</label>
+    <button class="btn" id="btnExpRanking" type="button">⬇️ Ranking atual (.csv)</button>
+    <button class="btn line" id="btnExpTodos" type="button" style="color:#fff;border-color:rgba(255,255,255,.5)">⬇️ Todos os municípios do Brasil</button>
+    <p class="note">Dados públicos do IBGE, consultados direto do seu navegador. · <a href="https://github.com/RodrigoAiosa/PopulacaoBrasil" target="_blank" rel="noopener">Código no GitHub</a></p>
+  </aside>
+
+  <main>
+    <section class="hero" aria-live="polite">
+      <div class="crumb" id="crumb">Brasil</div>
+      <div class="big" id="bigPop">—<small id="bigLbl">habitantes estimados</small></div>
+      <p>Painel construído com as APIs públicas do IBGE (Localidades e Agregados/SIDRA). Use os filtros para navegar por região, estado e município — ou clique no mapa e no ranking.</p>
+    </section>
+    <div class="cards" id="cards"></div>
+    <div id="aviso"></div>
+    <div class="grid">
+      <section class="panel" id="rankPanel"><div class="loading"><div class="spin"></div>Carregando dados do IBGE…</div></section>
+      <section class="panel">
+        <h3 id="mapTitle">Mapa: população por estado</h3>
+        <p class="sub" id="mapSub">Passe o mouse para ver os números; clique para navegar.</p>
+        <svg id="map" role="img" aria-label="Mapa de população"></svg>
+        <div class="legend"><span id="legMin">menos</span><div class="g"></div><span id="legMax">mais habitantes</span></div>
+      </section>
+    </div>
+    <footer>
+      Dados: IBGE — API de Localidades, API de Agregados (SIDRA) e API de Malhas Geográficas. Estimativas de população: tabela 6579.
+      Área e densidade: Censo Demográfico 2022 (tabela 4714). PIB e PIB per capita: PIB dos Municípios (tabela 5938).
+    </footer>
+  </main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+  const nf1 = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const fmt = (v, f = nf0) => (v == null || isNaN(v) ? "—" : f.format(v));
+  function brlCurto(v) {
+    if (v == null) return "—";
+    const a = Math.abs(v);
+    if (a >= 1e12) return `R$ ${nf1.format(v / 1e12)} tri`;
+    if (a >= 1e9) return `R$ ${nf1.format(v / 1e9)} bi`;
+    if (a >= 1e6) return `R$ ${nf1.format(v / 1e6)} mi`;
+    return brl.format(v);
+  }
+  const REGIOES = [[1, "Norte"], [2, "Nordeste"], [3, "Sudeste"], [4, "Sul"], [5, "Centro-Oeste"]];
+  const INVALIDOS = new Set(["-", "..", "...", "X", ""]);
+
+  // ------------------------------------------------------------- IBGE
+  // Chama a API do IBGE direto; se a rede/CORS falhar, usa a função /api/ibge.
+  const BASE = "https://servicodados.ibge.gov.br";
+  const memo = new Map();
+  let viaProxy = false;
+  function ibge(path, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const chave = `${path}?${qs}`;
+    if (memo.has(chave)) return memo.get(chave);
+    const direto = () => fetch(`${BASE}${path}${qs ? `?${qs}` : ""}`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+    const proxy = () => fetch(`/api/ibge?${new URLSearchParams({ path, ...params })}`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+    const p = (async () => {
+      if (!viaProxy) {
+        try { return await direto(); }
+        catch (e) { try { const d = await proxy(); viaProxy = true; return d; } catch { throw e; } }
+      }
+      return proxy();
+    })();
+    p.catch(() => memo.delete(chave));
+    memo.set(chave, p);
+    return p;
+  }
+  function numero(v) {
+    if (v == null) return null;
+    const s = String(v).trim();
+    if (INVALIDOS.has(s)) return null;
+    const n = s.includes(",") ? parseFloat(s.replace(/\./g, "").replace(",", ".")) : parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+  // Valores de uma variável para várias localidades: { id: {v, periodo} }
+  async function valores(tabela, variavel, localidades, periodo = "-1") {
+    const d = await ibge(`/api/v3/agregados/${tabela}/periodos/${periodo}/variaveis/${variavel}`, { localidades });
+    const out = {};
+    ((d && d[0] && d[0].resultados && d[0].resultados[0] && d[0].resultados[0].series) || []).forEach((s) => {
+      const per = Object.keys(s.serie || {}).sort();
+      for (let i = per.length - 1; i >= 0; i--) {
+        const v = numero(s.serie[per[i]]);
+        if (v != null) { out[+s.localidade.id] = { v, periodo: per[i] }; break; }
+      }
+    });
+    return out;
+  }
+  // Descobre o id de uma variável pelo nome (como o app original faz)
+  async function variavel(tabela, teste, reserva) {
+    try {
+      const m = await ibge(`/api/v3/agregados/${tabela}/metadados`);
+      const v = (m.variaveis || []).find((x) => teste(x.nome.toLowerCase()));
+      if (v) return { id: v.id, unidade: v.unidade || "" };
+    } catch { /* usa a reserva */ }
+    return reserva;
+  }
+  const VAR = {
+    area: () => variavel(4714, (n) => n.includes("área"), { id: 6318, unidade: "Quilômetros quadrados" }),
+    dens: () => variavel(4714, (n) => n.includes("densidade"), { id: 614, unidade: "Habitante por quilômetro quadrado" }),
+    pib: () => variavel(5938, (n) => n.startsWith("produto interno bruto a preços correntes") && !n.includes("per capita"), { id: 37, unidade: "Mil Reais" }),
+    pibpc: () => variavel(5938, (n) => n.includes("per capita"), { id: 497, unidade: "Reais" }),
+  };
+  const escalaUnidade = (u) => (/mil reais/i.test(u) ? 1000 : /milh/i.test(u) ? 1e6 : 1);
+
+  // -------------------------------------------------------- dados locais
+  let ESTADOS = [], MUNS = [], GEO_UF = null;
+  const mapaEstado = new Map(), mapaMun = new Map();
+  async function carregarBase() {
+    const [e, m, g] = await Promise.all([fetch("data/estados.json").then((r) => r.json()), fetch("data/municipios.json").then((r) => r.json()), fetch("data/brasil_uf.min.geojson").then((r) => r.json())]);
+    const REG_ID = Object.fromEntries(REGIOES.map(([id, n]) => [n, id]));
+    ESTADOS = e.map(([id, sigla, nome, regiao]) => ({ id, sigla, nome, regiao, regiaoId: REG_ID[regiao] })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    MUNS = m.map(([id, nome, uf, lat, lon, cap]) => ({ id, nome, uf, lat, lon, capital: cap === 1 })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    ESTADOS.forEach((x) => mapaEstado.set(x.id, x));
+    MUNS.forEach((x) => mapaMun.set(x.id, x));
+    GEO_UF = corrigirSentido(g);
+  }
+  function corrigirSentido(g) {
+    g.features.forEach((f) => {
+      if (d3.geoArea(f) > 2 * Math.PI) {
+        const gm = f.geometry;
+        if (gm.type === "Polygon") gm.coordinates.forEach((r) => r.reverse());
+        if (gm.type === "MultiPolygon") gm.coordinates.forEach((p) => p.forEach((r) => r.reverse()));
+      }
+    });
+    return g;
+  }
+
+  // --------------------------------------------------------------- filtros
+  const sR = $("selRegiao"), sE = $("selEstado"), sM = $("selMun");
+  function preencherEstados() {
+    const r = +sR.value;
+    sE.innerHTML = `<option value="">Todos os estados da seleção</option>` + ESTADOS.filter((e) => !r || e.regiaoId === r).map((e) => `<option value="${e.id}">${esc(e.nome)} (${e.sigla})</option>`).join("");
+  }
+  function preencherMunicipios() {
+    const uf = +sE.value;
+    sM.disabled = !uf;
+    sM.innerHTML = `<option value="">Todos os municípios do estado</option>` + (uf ? MUNS.filter((m) => m.uf === uf).map((m) => `<option value="${m.id}">${esc(m.nome)}${m.capital ? " (capital)" : ""}</option>`).join("") : "");
+  }
+  sR.addEventListener("change", () => { preencherEstados(); preencherMunicipios(); atualizar(); });
+  sE.addEventListener("change", () => { preencherMunicipios(); atualizar(); });
+  sM.addEventListener("change", atualizar);
+  function selecionar({ r = "", uf = "", m = "" }) {
+    if (uf && !r) r = mapaEstado.get(+uf)?.regiaoId || "";
+    sR.value = r; preencherEstados(); sE.value = uf; preencherMunicipios(); sM.value = m;
+    atualizar();
+  }
+
+  // ------------------------------------------------------------- render
+  let rankingAtual = [], rankingTitulo = "", geracao = 0;
+  const tip = $("tip");
+  function posTip(e) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 14; if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = `${x}px`; tip.style.top = `${y}px`; }
+
+  async function atualizar() {
+    const id = ++geracao;
+    const r = +sR.value || null, uf = +sE.value || null, m = +sM.value || null;
+    const est = uf ? mapaEstado.get(uf) : null, mun = m ? mapaMun.get(m) : null;
+    const regNome = r ? REGIOES.find((x) => x[0] === r)[1] : null;
+    history.replaceState(null, "", "#" + new URLSearchParams(Object.entries({ r: r || "", uf: uf || "", m: m || "" }).filter(([, v]) => v)).toString());
+
+    const nivel = mun ? "N6" : est ? "N3" : r ? "N2" : "N1";
+    const cod = mun ? m : est ? uf : r ? r : "all";
+    const nome = mun ? mun.nome : est ? est.nome : regNome ? `região ${regNome}` : "Brasil";
+    $("crumb").textContent = ["Brasil", regNome || est?.regiao, est?.nome, mun?.nome].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(" › ");
+    $("bigPop").firstChild.textContent = "…";
+    $("bigLbl").textContent = `habitantes estimados em ${nome}`;
+    $("cards").innerHTML = "";
+    $("aviso").innerHTML = "";
+    $("rankPanel").innerHTML = `<div class="loading"><div class="spin"></div>Carregando dados do IBGE…</div>`;
+    document.title = `${mun ? `${mun.nome} – ` : est ? `${est.nome} – ` : ""}Painel Demográfico do Brasil`;
+
+    const falhas = [];
+    const seguro = (p, rotulo) => p.catch(() => { falhas.push(rotulo); return null; });
+    const loc = `${nivel}[${cod}]`;
+    const comPib = nivel === "N3" || nivel === "N6";
+    const [vArea, vDens, vPib, vPibpc] = await Promise.all([VAR.area(), VAR.dens(), comPib ? VAR.pib() : null, comPib ? VAR.pibpc() : null]);
+
+    // Indicadores do local selecionado + ranking de pares
+    let pares, nivelPares, consultaPares;
+    if (mun || est) { const u = est.id; pares = MUNS.filter((x) => x.uf === u); nivelPares = "N6"; consultaPares = `N6[N3[${u}]]`; }
+    else if (r) { pares = ESTADOS.filter((x) => x.regiaoId === r); nivelPares = "N3"; consultaPares = `N3[${pares.map((x) => x.id).join(",")}]`; }
+    else { pares = ESTADOS; nivelPares = "N3"; consultaPares = "N3[all]"; }
+
+    const [pop, area, dens, pib, pibpc, popPares, pcPares, popUfs] = await Promise.all([
+      seguro(valores(6579, 9324, loc), "população"),
+      seguro(valores(4714, vArea.id, loc), "área"),
+      seguro(valores(4714, vDens.id, loc), "densidade"),
+      comPib ? seguro(valores(5938, vPib.id, loc), "PIB") : null,
+      comPib ? seguro(valores(5938, vPibpc.id, loc), "PIB per capita") : null,
+      seguro(valores(6579, 9324, consultaPares), "ranking"),
+      nivelPares === "N6" ? seguro(valores(5938, vPibpc.id, consultaPares), "PIB per capita dos municípios") : null,
+      nivelPares === "N6" ? seguro(valores(6579, 9324, "N3[all]"), "mapa") : null,
+    ]);
+    if (id !== geracao) return;
+    const um = (o) => (o ? Object.values(o)[0] || null : null);
+    const P = um(pop), A = um(area), D = um(dens), PIB = um(pib), PC = um(pibpc);
+
+    $("bigPop").firstChild.textContent = fmt(P?.v);
+    $("bigLbl").textContent = `habitantes estimados em ${nome}${P ? ` (estimativa ${P.periodo})` : ""}`;
+
+    rankingAtual = pares.filter((x) => popPares && popPares[x.id]).map((x) => ({ id: x.id, nome: x.nome, sigla: x.sigla, pop: popPares[x.id].v, pc: pcPares && pcPares[x.id] ? pcPares[x.id].v : null })).sort((a, b) => b.pop - a.pop);
+    const pos = mun ? rankingAtual.findIndex((x) => x.id === m) + 1 : 0;
+
+    let card4;
+    if (mun) card4 = ["Posição no estado", pos ? `${pos}º` : "—", "", `de ${rankingAtual.length || pares.length} municípios`];
+    else if (est) card4 = ["Municípios", fmt(pares.length), "", "no estado"];
+    else if (r) card4 = ["Municípios", fmt(MUNS.filter((x) => pares.some((p) => p.id === x.uf)).length), "", `em ${pares.length} estados`];
+    else card4 = ["Estados", "27", "", "26 estados + Distrito Federal"];
+    const cards = [
+      ["População estimada", fmt(P?.v), "hab.", P ? `Estimativas IBGE · ${P.periodo}` : "Estimativas IBGE"],
+      ["Área territorial", fmt(A?.v), "km²", "Censo 2022"],
+      ["Densidade demográfica", fmt(D?.v, nf1), "hab/km²", "Censo 2022"],
+    ];
+    if (comPib) {
+      cards.push(["PIB per capita", PC ? brl.format(PC.v * escalaUnidade(vPibpc.unidade)) : "—", "", PC ? `PIB dos Municípios · ${PC.periodo}` : "PIB dos Municípios (IBGE)"]);
+      cards.push(["PIB total", PIB ? brlCurto(PIB.v * escalaUnidade(vPib.unidade)) : "—", "", PIB ? `a preços correntes · ${PIB.periodo}` : "PIB dos Municípios (IBGE)"]);
+    }
+    cards.push(card4);
+    $("cards").innerHTML = cards.map(([k, v, u, f]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}${u && v !== "—" ? `<span>${esc(u)}</span>` : ""}</div><div class="f">${esc(f)}</div></div>`).join("");
+    if (falhas.length) $("aviso").innerHTML = `<div class="warn">⚠️ Não foi possível carregar agora: ${esc([...new Set(falhas)].join(", "))}. A API do IBGE pode estar instável — tente de novo em instantes.</div>`;
+
+    // Ranking
+    if (nivelPares === "N6") {
+      rankingTitulo = `Ranking dos municípios de ${est.nome}`;
+      renderTabela(m, escalaUnidade(vPibpc?.unidade || ""));
+    } else {
+      rankingTitulo = r ? `Estados da região ${regNome} por população` : "Estados do Brasil por população";
+      renderBarras();
+    }
+
+    // Mapa
+    if (nivelPares === "N6") {
+      renderMapaUfs(popUfs, uf, null, true);
+      carregarMapaMunicipios(est, popPares, m, id);
+    } else {
+      renderMapaUfs(popPares, null, r, false);
+    }
+  }
+
+  function renderBarras() {
+    const max = d3.max(rankingAtual, (x) => x.pop) || 1;
+    $("rankPanel").innerHTML = `<h3>${esc(rankingTitulo)}</h3><p class="sub">Clique em um estado para abrir os municípios.</p>
+      <div class="bars">${rankingAtual.map((x) => `<div class="bar" data-uf="${x.id}" title="Ver ${esc(x.nome)}"><span class="n">${esc(x.nome)}</span><span class="t"><i style="width:${(x.pop / max) * 100}%"></i><b>${fmt(x.pop)}</b></span></div>`).join("") || `<p class="sub">Sem dados de população no momento.</p>`}</div>`;
+    $("rankPanel").querySelectorAll("[data-uf]").forEach((el) => el.addEventListener("click", () => selecionar({ uf: el.dataset.uf })));
+  }
+
+  let ordem = { col: "pop", dir: -1 };
+  function renderTabela(destaque, escalaPc) {
+    const posicao = new Map(rankingAtual.map((x, i) => [x.id, i + 1]));
+    $("rankPanel").innerHTML = `<h3>${esc(rankingTitulo)}</h3><p class="sub">${rankingAtual.length} municípios com estimativa · clique em um para ver os detalhes.</p>
+      <input class="search" id="busca" type="search" placeholder="Filtrar município…" aria-label="Filtrar município">
+      <div class="table-wrap"><table><thead><tr><th class="num" data-c="pos">#</th><th data-c="nome">Município</th><th class="num" data-c="pop">População</th><th class="num" data-c="pc">PIB per capita</th></tr></thead><tbody id="tb"></tbody></table></div>`;
+    const desenhar = () => {
+      const f = $("busca").value.trim().toLowerCase();
+      const l = rankingAtual.filter((x) => !f || x.nome.toLowerCase().includes(f)).slice();
+      const val = (x) => (ordem.col === "pos" ? posicao.get(x.id) : x[ordem.col]);
+      l.sort((a, b) => { const va = val(a), vb = val(b); if (va == null) return 1; if (vb == null) return -1; return (typeof va === "string" ? va.localeCompare(vb, "pt-BR") : va - vb) * ordem.dir; });
+      $("tb").innerHTML = l.map((x) => `<tr data-m="${x.id}" class="${x.id === destaque ? "hl" : ""}"><td class="num">${posicao.get(x.id)}º</td><td>${esc(x.nome)}</td><td class="num">${fmt(x.pop)}</td><td class="num">${x.pc != null ? brl.format(x.pc * escalaPc) : "—"}</td></tr>`).join("");
+    };
+    $("busca").addEventListener("input", desenhar);
+    $("rankPanel").querySelector("thead").addEventListener("click", (e) => {
+      const c = e.target.closest("th")?.dataset.c; if (!c) return;
+      ordem = { col: c, dir: ordem.col === c ? -ordem.dir : c === "nome" || c === "pos" ? 1 : -1 }; desenhar();
+    });
+    $("tb").addEventListener("click", (e) => { const tr = e.target.closest("tr"); if (tr) selecionar({ uf: sE.value, m: tr.dataset.m }); });
+    desenhar();
+    const hl = $("tb").querySelector(".hl"); if (hl) hl.scrollIntoView({ block: "center" });
+  }
+
+  const W = 800, H = 760;
+  function escalaCor(vals) {
+    const v = vals.filter((x) => x > 0);
+    const [mn, mx] = v.length ? d3.extent(v) : [1, 10];
+    $("legMin").textContent = fmt(mn); $("legMax").textContent = `${fmt(mx)} hab.`;
+    const s = d3.scaleLog().domain([Math.max(1, mn), Math.max(mn + 1, mx)]).range([0, 1]).clamp(true);
+    const c = d3.interpolateRgbBasis(["#e3efe9", "#8cbcab", "#1f6f5c", "#123a30"]);
+    return (x) => (x > 0 ? c(s(x)) : "#e8ece8");
+  }
+  function hover(sel, texto) {
+    sel.on("pointerenter pointermove", (e, f) => { tip.innerHTML = texto(f); tip.style.opacity = 1; posTip(e); })
+      .on("pointerleave", () => { tip.style.opacity = 0; });
+  }
+  function renderMapaUfs(popUfs, ufSel, regSel, soContexto) {
+    $("mapTitle").textContent = regSel ? `Mapa: população por estado — região ${REGIOES.find((x) => x[0] === regSel)[1]}` : "Mapa: população por estado — Brasil";
+    $("mapSub").textContent = "Passe o mouse para ver os números; clique em um estado para navegar.";
+    const pop = (sig) => { const e = ESTADOS.find((x) => x.sigla === sig); return e && popUfs && popUfs[e.id] ? popUfs[e.id].v : null; };
+    const cor = escalaCor(GEO_UF.features.map((f) => pop(f.properties.SIGLA) || 0));
+    const proj = d3.geoMercator().fitSize([W, H], GEO_UF), path = d3.geoPath(proj);
+    const svg = d3.select("#map").attr("viewBox", `0 0 ${W} ${H}`); svg.selectAll("*").remove();
+    const ps = svg.append("g").selectAll("path").data(GEO_UF.features).join("path").attr("d", path)
+      .attr("fill", (f) => cor(pop(f.properties.SIGLA)))
+      .attr("class", (f) => { const e = ESTADOS.find((x) => x.sigla === f.properties.SIGLA); return [regSel && e && e.regiaoId !== regSel ? "dim" : "", ufSel && e && e.id === ufSel ? "sel" : ""].join(" "); })
+      .on("click", (e, f) => { const est = ESTADOS.find((x) => x.sigla === f.properties.SIGLA); if (est) selecionar({ uf: est.id }); });
+    hover(ps, (f) => { const p = pop(f.properties.SIGLA); return `<b>${esc(f.properties.Estado || f.properties.SIGLA)}</b><br>${p ? `${fmt(p)} habitantes` : "sem dado"}`; });
+    if (soContexto) $("mapSub").textContent = "Carregando o mapa dos municípios…";
+  }
+
+  async function carregarMapaMunicipios(est, popMun, munSel, id) {
+    let geo;
+    try {
+      geo = await ibge(`/api/v3/malhas/estados/${est.id}`, { formato: "application/vnd.geo+json", intrarregiao: "municipio", qualidade: "minima" });
+      if (!geo || !geo.features) throw new Error("malha vazia");
+      geo = corrigirSentido(JSON.parse(JSON.stringify(geo)));
+    } catch {
+      if (id === geracao) $("mapSub").textContent = "Não foi possível carregar a malha dos municípios agora; mostrando o mapa por estado.";
+      return;
+    }
+    if (id !== geracao) return;
+    $("mapTitle").textContent = `Mapa: população por município — ${est.nome}`;
+    $("mapSub").textContent = "Passe o mouse para ver os números; clique em um município para ver os detalhes.";
+    const pop = (f) => { const c = +f.properties.codarea; return popMun && popMun[c] ? popMun[c].v : null; };
+    const cor = escalaCor(geo.features.map((f) => pop(f) || 0));
+    const proj = d3.geoMercator().fitSize([W, H], geo), path = d3.geoPath(proj);
+    const svg = d3.select("#map").attr("viewBox", `0 0 ${W} ${H}`); svg.selectAll("*").remove();
+    const ps = svg.append("g").selectAll("path").data(geo.features).join("path").attr("d", path)
+      .attr("fill", (f) => cor(pop(f))).attr("class", (f) => (+f.properties.codarea === munSel ? "sel" : ""))
+      .on("click", (e, f) => selecionar({ uf: est.id, m: +f.properties.codarea }));
+    svg.select(".sel").raise();
+    hover(ps, (f) => { const m = mapaMun.get(+f.properties.codarea), p = pop(f); return `<b>${esc(m ? m.nome : f.properties.codarea)}</b><br>${p ? `${fmt(p)} habitantes` : "sem dado"}`; });
+  }
+
+  // --------------------------------------------------------------- exportar
+  function baixarCsv(linhas, cols, nome) {
+    const q = (v) => { const s = v == null ? "" : String(v); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const txt = "﻿" + [cols.map((c) => c[0]).join(";"), ...linhas.map((l) => cols.map((c) => q(c[1](l))).join(";"))].join("\r\n");
+    const url = URL.createObjectURL(new Blob([txt], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: nome });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  const dec = (v) => (v == null ? "" : String(Math.round(v * 100) / 100).replace(".", ","));
+  $("btnExpRanking").onclick = () => {
+    if (!rankingAtual.length) return;
+    const n6 = !!sE.value;
+    baixarCsv(rankingAtual, [["Posição", (x) => rankingAtual.indexOf(x) + 1], ["Código IBGE", (x) => x.id], [n6 ? "Município" : "Estado", (x) => x.nome], ["População estimada", (x) => Math.round(x.pop)], ...(n6 ? [["PIB per capita (R$)", (x) => dec(x.pc)]] : [])],
+      `ranking_${rankingTitulo.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_")}.csv`);
+  };
+  $("btnExpTodos").onclick = async () => {
+    const b = $("btnExpTodos"), txt = b.textContent;
+    b.disabled = true; b.textContent = "Consultando o IBGE…";
+    try {
+      const pop = await valores(6579, 9324, "N6[all]");
+      const linhas = MUNS.map((m) => ({ ...m, est: mapaEstado.get(m.uf), p: pop[m.id] })).sort((a, b) => (b.p?.v || 0) - (a.p?.v || 0));
+      baixarCsv(linhas, [["Código IBGE", (x) => x.id], ["Município", (x) => x.nome], ["UF", (x) => x.est?.sigla], ["Estado", (x) => x.est?.nome], ["Região", (x) => x.est?.regiao], ["População estimada", (x) => (x.p ? Math.round(x.p.v) : "")], ["Ano da estimativa", (x) => x.p?.periodo || ""]], "populacao_todos_municipios_brasil.csv");
+    } catch { alert("Não foi possível consultar o IBGE agora. Tente novamente em instantes."); }
+    b.disabled = false; b.textContent = txt;
+  };
+
+  // ------------------------------------------------------------------ início
+  (async () => {
+    try { await carregarBase(); }
+    catch { $("rankPanel").innerHTML = `<div class="warn">Não foi possível carregar a lista de estados e municípios.</div>`; return; }
+    sR.innerHTML += REGIOES.map(([id, n]) => `<option value="${id}">${n}</option>`).join("");
+    preencherEstados(); preencherMunicipios();
+    const h = new URLSearchParams(location.hash.slice(1));
+    selecionar({ r: h.get("r") || "", uf: h.get("uf") || "", m: h.get("m") || "" });
+  })();
+})();
+</script>
+</body>
+</html>
