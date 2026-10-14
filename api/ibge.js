@@ -24,7 +24,10 @@ module.exports = async (req, res) => {
   for (let t = 0; t < 2; t++) {
     try {
       const r = await fetch(`${BASE}${path}${qs.toString() ? `?${qs}` : ""}`, {
-        headers: { Accept: "application/json, application/vnd.geo+json" },
+        headers: {
+          Accept: "application/json, application/vnd.geo+json",
+          "User-Agent": "Mozilla/5.0 (compatible; PainelDemografico/1.0; +https://populacaobrasil.vercel.app)",
+        },
         signal: AbortSignal.timeout(20000),
       });
       if (!r.ok) {
