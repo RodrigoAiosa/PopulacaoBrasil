@@ -152,7 +152,16 @@ class SidebarFilters:
                 key="municipio_disabled"
             )
             self.municipio_selecionado = None
-        
+
+        # Botão para limpar todos os filtros
+        st.sidebar.button(
+            "🧹 Limpar filtro",
+            use_container_width=True,
+            key="limpar_filtro",
+            on_click=self._limpar_filtros,
+            disabled=self.regiao_selecionada is None and self.estado_selecionado is None,
+        )
+
         # Botão de exportação
         st.sidebar.markdown("---")
         self._render_export_button()
@@ -184,6 +193,20 @@ class SidebarFilters:
             "modo_offline": self._connection_error
         }
     
+    @staticmethod
+    def _limpar_filtros():
+        """Volta todos os filtros ao estado inicial (Brasil, sem estado/município).
+
+        Executado como callback do botão, antes da próxima renderização — é o único
+        momento em que o Streamlit permite alterar o valor de widgets já criados.
+        """
+        st.session_state["regiao_select"] = FILTER_OPTIONS["todas_regioes"]
+        st.session_state["estado_select"] = FILTER_OPTIONS["todos_estados"]
+        st.session_state.pop("municipio_select", None)
+        st.session_state["sf_regiao_selecionada"] = None
+        st.session_state["sf_estado_selecionado"] = None
+        st.session_state["sf_municipio_selecionado"] = None
+
     def _render_export_button(self):
         """Renderiza o botão de exportação na sidebar."""
         st.sidebar.markdown("### 📊 Exportar Dados")

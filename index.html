@@ -31,6 +31,8 @@ aside select, aside input { width: 100%; font: 500 14px "IBM Plex Sans", sans-se
 aside select:disabled { opacity: .5; }
 aside .hr { border-top: 1px solid rgba(255,255,255,.14); margin: 24px 0 16px; }
 aside .btn { width: 100%; margin-top: 10px; }
+aside .btn.clear { margin-top: 14px; color: #fff; border-color: rgba(255,255,255,.5); }
+aside .btn.clear:disabled { opacity: .4; cursor: default; }
 aside .note { font-size: 12px; opacity: .7; margin-top: 18px; }
 aside a { color: #fff; }
 
@@ -112,6 +114,7 @@ select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px s
       <div><label for="selEstado">Estado</label><select id="selEstado"><option value="">Todos os estados da seleção</option></select></div>
       <div><label for="selMun">Município</label><select id="selMun" disabled><option value="">Todos os municípios do estado</option></select></div>
     </div>
+    <button class="btn line clear" id="btnLimpar" type="button" disabled>🧹 Limpar filtro</button>
     <div class="hr"></div>
     <label>Exportar dados</label>
     <button class="btn" id="btnExpRanking" type="button">⬇️ Ranking atual (.csv)</button>
@@ -260,6 +263,7 @@ select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px s
   sR.addEventListener("change", () => { preencherEstados(); preencherMunicipios(); atualizar(); });
   sE.addEventListener("change", () => { preencherMunicipios(); atualizar(); });
   sM.addEventListener("change", atualizar);
+  $("btnLimpar").addEventListener("click", () => { ordem = { col: "pop", dir: -1 }; selecionar({}); });
   function selecionar({ r = "", uf = "", m = "" }) {
     if (uf && !r) r = mapaEstado.get(+uf)?.regiaoId || "";
     sR.value = r; preencherEstados(); sE.value = uf; preencherMunicipios(); sM.value = m;
@@ -276,6 +280,7 @@ select:focus-visible, button:focus-visible, input:focus-visible { outline: 2px s
     const r = +sR.value || null, uf = +sE.value || null, m = +sM.value || null;
     const est = uf ? mapaEstado.get(uf) : null, mun = m ? mapaMun.get(m) : null;
     const regNome = r ? REGIOES.find((x) => x[0] === r)[1] : null;
+    $("btnLimpar").disabled = !(r || uf || m);
     history.replaceState(null, "", "#" + new URLSearchParams(Object.entries({ r: r || "", uf: uf || "", m: m || "" }).filter(([, v]) => v)).toString());
 
     const nivel = mun ? "N6" : est ? "N3" : r ? "N2" : "N1";
